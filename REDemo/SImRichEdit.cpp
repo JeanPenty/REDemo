@@ -387,7 +387,7 @@ ITextDocument* SImRichEdit::GetTextDoc()
 
 ITextServices* SImRichEdit::GetTextServ()
 {
-    return m_pTxtHost->GetTextService();
+    return GetTextServices();
 }
 
 BOOL SImRichEdit::AcceptContent(RichFormatConv* conv)
@@ -1061,7 +1061,7 @@ void SImRichEdit::SetAutoVScroll(BOOL bEnabled)
 	else
 		m_dwStyle &= ~ES_AUTOVSCROLL;
 
-	m_pTxtHost->GetTextService()->OnTxPropertyBitsChange(TXTBIT_SCROLLBARCHANGE, TXTBIT_SCROLLBARCHANGE);
+	GetTextServices()->OnTxPropertyBitsChange(TXTBIT_SCROLLBARCHANGE, TXTBIT_SCROLLBARCHANGE);
 }
 
 BOOL SImRichEdit::IsAutoVScroll()
@@ -1565,7 +1565,7 @@ void SImRichEdit::OnSize(UINT nType, CSize size)
 	int scrollPos = GetScrollPos(TRUE);
 
 	UpdateBkgndRenderTarget();
-	m_pTxtHost->GetTextService()->OnTxPropertyBitsChange(TXTBIT_EXTENTCHANGE, TXTBIT_EXTENTCHANGE);
+	GetTextServices()->OnTxPropertyBitsChange(TXTBIT_EXTENTCHANGE, TXTBIT_EXTENTCHANGE);
 	UpdateContentPosition(0);
 	ForceUpdateLayout();
 
@@ -1847,7 +1847,7 @@ BOOL SImRichEdit::OnScroll(BOOL bVertical, UINT uCode, int nPos)
 
 		UINT code = (uCode == SB_THUMBTRACK) ? SB_THUMBPOSITION : uCode;
 
-		m_pTxtHost->GetTextService()->TxSendMessage(
+		GetTextServices()->TxSendMessage(
 			bVertical ? WM_VSCROLL : WM_HSCROLL,
 			MAKEWPARAM(code, m_siVer.nPos),
 			0,
