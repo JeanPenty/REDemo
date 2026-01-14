@@ -11,6 +11,9 @@
 #define INIT_R_DATA
 #include "res/resource.h"
 
+#include "SImageView.h"
+#include "SImRichEdit.h"
+
 using namespace SNS;
 
 //debug时方便调试设置当前目录以便从文件加载资源
@@ -49,6 +52,8 @@ int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPTSTR lp
 #endif//_DEBUG
 
     // regisger external widget and skinobj
+	app.RegisterWindowClass<SImRichEdit>();
+	app.RegisterWindowClass<SImageView>();
 
 	if (!cfg.DoConfig(&app))
     {

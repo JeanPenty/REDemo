@@ -185,15 +185,22 @@
     <Text Include="readme.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ClipboardConverter.cpp" />
     <ClCompile Include="dataobject.cpp" />
     <ClCompile Include="ExtendSkins.cpp" />
     <ClCompile Include="HTMLParser.cpp" />
     <ClCompile Include="HTTPDownloader.cpp" />
+    <ClCompile Include="ImgProvider.cpp" />
     <ClCompile Include="MainDlg.cpp" />
     <ClCompile Include="REDemo.cpp" />
     <ClCompile Include="RichEditObj.cpp" />
+    <ClCompile Include="RichEditObjFactory.cpp" />
     <ClCompile Include="RichEditOleBase.cpp" />
+    <ClCompile Include="RichEditOleCallback.cpp" />
+    <ClCompile Include="RichEditOleCtrls.cpp" />
+    <ClCompile Include="RichEditUintConverter.cpp" />
     <ClCompile Include="SAntialiasSkin.cpp" />
+    <ClCompile Include="SImageView.cpp" />
     <ClCompile Include="SImRichEdit.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -208,17 +215,24 @@
     <ResourceCompile Include="REDemo.rc" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ClipboardConverter.h" />
     <ClInclude Include="dataobject.h" />
     <ClInclude Include="ExtendSkins.h" />
     <ClInclude Include="HTMLParser.h" />
     <ClInclude Include="HTTPDownloader.h" />
+    <ClInclude Include="ImgProvider.h" />
     <ClInclude Include="IRichEditObjHost.h" />
     <ClInclude Include="MainDlg.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="RichEditObj.h" />
     <ClInclude Include="RichEditObjEvents.h" />
+    <ClInclude Include="RichEditObjFactory.h" />
     <ClInclude Include="RichEditOleBase.h" />
+    <ClInclude Include="RichEditOleCallback.h" />
+    <ClInclude Include="RichEditOleCtrls.h" />
+    <ClInclude Include="RichEditUintConverter.h" />
     <ClInclude Include="SAntialiasSkin.h" />
+    <ClInclude Include="SImageView.h" />
     <ClInclude Include="SImRichEdit.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="SVscrollbar.h" />

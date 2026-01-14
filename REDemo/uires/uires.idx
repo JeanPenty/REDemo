@@ -14,6 +14,23 @@
 
   <IMG>
   </IMG>
+
+	<PNG>
+		<file name="IDB_PNG_LEFTBUBBLE" path="image\im\left_bubble.png" />
+		<file name="IDB_PNG_RIGHTBUBBLE" path="image\im\right_bubble.png" />
+		<file name="IDB_PNG_RIGHTOTHERBUBBLE" path="image\im\right_other_bubble.png" />
+		<file name="IDB_PNG_DEFAULTBG" path="image\im\default_bg.png" />
+		<file name="IDB_PNG_RICHEDIT_MOREMSG" path="image\im\richedit_more.png" />
+		<file name="IDB_PNG_RICHEDIT_MORELOADING" path="image\im\richedit_moreloading.gif" />
+		<file name="IDB_PNG_RICHEDIT_RESEND" path="image\im\richedit_resend.png" />
+		<file name="ID_RICH_SYSMSG_BK" path="image\im\aio_sys_bg.png"/>
+		<file name="IDB_PNG_BGSYSMSG" path="image\im\bg_system_msg.png" />
+		<file name="IDB_PNG_REVOKE_REEDITOR" path="image\im\revoke_reeditor.png" />
+
+
+		<file name="ID_EMPTY" path="image\im\empty.png"/>
+	</PNG>
+	
   <ICON>
     <file name="ICON_LOGO"  path="image\soui.ico"/>
   </ICON>

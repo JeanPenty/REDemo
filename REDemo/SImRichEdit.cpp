@@ -9,11 +9,249 @@
 #include <time.h>
 #include "utils.h"
 #include "gdialpha.h"
-//#include "ClipboardConverter.h"
+#include <RichOle.h>
+#include "ClipboardConverter.h"
+#include "RichEditOleBase.h"
 
 #ifndef LY_PER_INCH
 #define LY_PER_INCH 1440
 #endif
+
+//
+// richeditï¿½Ú²ï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½timer id
+//
+#define RETID_BGND_RECALC	0x01af
+#define RETID_AUTOSCROLL	0x01b0
+#define RETID_SMOOTHSCROLL	0x01b1
+#define RETID_DRAGDROP		0x01b2
+#define RETID_MAGELLANTRACK	0x01b3
+
+	// richedit internal helpers
+
+	/*
+	* ï¿½ï¿½È¡Ö¸ï¿½ï¿½OLEï¿½ï¿½cp
+	* @param pOle: oleï¿½ï¿½ï¿½ï¿½
+	* @param iOle: richeditï¿½ï¿½ÄµÚ¼ï¿½ï¿½ï¿½ole
+	* @return: oleï¿½ï¿½cp
+	*/
+LONG GetOleCP(IRichEditOle* pOle, int iOle)
+{
+	REOBJECT reobj = { 0 };
+	reobj.cbStruct = sizeof(REOBJECT);
+	pOle->GetObject(iOle, &reobj, REO_GETOBJ_NO_INTERFACES);
+	return reobj.cp;
+}
+
+/*
+ * ï¿½ï¿½ï¿½ï¿½ï¿½Û°ï¿½ï¿½ï¿½ÒµÄ·ï¿½ï¿½ï¿½ï¿½ï¿½[cpMin,cpMax)ï¿½ï¿½ï¿½Ò³ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½É¼ï¿½ï¿½ï¿½OLEï¿½Â±ï¿½
+ *
+ * @param pOle: richeditï¿½ï¿½OLEï¿½ï¿½ï¿½ï¿½
+ * @param iBegin: ï¿½ï¿½ï¿½Òµï¿½ï¿½ï¿½Ê¼Î»ï¿½ï¿½
+ * @param iEnd: ï¿½ï¿½ï¿½ÒµÄ½ï¿½ï¿½ï¿½Î»ï¿½ï¿½
+ * @param cpMin: richeditï¿½ï¿½Ò»ï¿½ï¿½ï¿½É¼ï¿½ï¿½Ö·ï¿½ï¿½ï¿½Î»ï¿½ï¿½
+ * @param cpMax: richeditï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½É¼ï¿½ï¿½Ö·ï¿½ï¿½ï¿½Î»ï¿½ï¿½
+ *
+ * @return: ï¿½ï¿½ï¿½ï¿½Òµï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½É¼ï¿½ï¿½ï¿½oleï¿½ò·µ»ï¿½oleï¿½ï¿½cpï¿½ï¿½ï¿½ï¿½ï¿½ò·µ»ï¿½-1.
+ */
+int FindFirstOleInrange(IRichEditOle* pOle, int iBegin, int iEnd, int cpMin, int cpMax)
+{
+	if (iBegin == iEnd) return -1;
+
+	int iMid = (iBegin + iEnd) / 2;
+
+	LONG cp = GetOleCP(pOle, iMid);
+
+	if (cp < cpMin)
+	{
+		return FindFirstOleInrange(pOle, iMid + 1, iEnd, cpMin, cpMax);
+	}
+	else if (cp >= cpMax)
+	{
+		return FindFirstOleInrange(pOle, iBegin, iMid, cpMin, cpMax);
+	}
+	else
+	{
+		int iRet = iMid;
+		while (iRet > iBegin)
+		{
+			cp = GetOleCP(pOle, iRet - 1);
+			if (cp < cpMin) break;
+			iRet--;
+		}
+		return iRet;
+	}
+}
+
+/*
+ * ï¿½ï¿½ï¿½ï¿½ï¿½Û°ï¿½ï¿½ï¿½ÒµÄ·ï¿½ï¿½ï¿½ï¿½ï¿½[cpMin,cpMax)ï¿½ï¿½ï¿½Ò³ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½É¼ï¿½ï¿½ï¿½OLEï¿½Â±ï¿½
+ *
+ * @param pOle: richeditï¿½ï¿½OLEï¿½ï¿½ï¿½ï¿½
+ * @param iBegin: ï¿½ï¿½ï¿½Òµï¿½ï¿½ï¿½Ê¼Î»ï¿½ï¿½
+ * @param iEnd: ï¿½ï¿½ï¿½ÒµÄ½ï¿½ï¿½ï¿½Î»ï¿½ï¿½
+ * @param cpMin: richeditï¿½ï¿½Ò»ï¿½ï¿½ï¿½É¼ï¿½ï¿½Ö·ï¿½ï¿½ï¿½Î»ï¿½ï¿½
+ * @param cpMax: richeditï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½É¼ï¿½ï¿½Ö·ï¿½ï¿½ï¿½Î»ï¿½ï¿½
+ *
+ * @return: ï¿½ï¿½ï¿½ï¿½Òµï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½É¼ï¿½ï¿½ï¿½oleï¿½ò·µ»ï¿½oleï¿½ï¿½cpï¿½ï¿½ï¿½ï¿½ï¿½ò·µ»ï¿½-1.
+ */
+int FindLastOleInrange(IRichEditOle* pOle, int iBegin, int iEnd, int cpMin, int cpMax)
+{
+	if (iBegin == iEnd) return -1;
+
+	int iMid = (iBegin + iEnd) / 2;
+
+	LONG cp = GetOleCP(pOle, iMid);
+
+	if (cp < cpMin)
+	{
+		return FindLastOleInrange(pOle, iMid + 1, iEnd, cpMin, cpMax);
+	}
+	else if (cp >= cpMax)
+	{
+		return FindLastOleInrange(pOle, iBegin, iMid, cpMin, cpMax);
+	}
+	else
+	{
+		int iRet = iMid;
+		while (iRet < (iEnd - 1))
+		{
+			cp = GetOleCP(pOle, iRet + 1);
+			if (cp >= cpMax) break;
+			iRet++;
+		}
+		return iRet;
+	}
+}
+
+// impl RichEditDropTarget
+class RichEditDropTarget : public IDropTarget
+{
+public:
+	RichEditDropTarget(IRichEditObjHost* phost)
+		:_ref(1)
+		, _pHost(phost)
+	{
+		SASSERT(_pserv);
+		_pserv = phost->GetTextServ();
+		_pserv->AddRef();
+	}
+
+	~RichEditDropTarget()
+	{
+		SASSERT(_pserv);
+		_pserv->Release();
+	}
+
+	//IUnkown
+	virtual HRESULT STDMETHODCALLTYPE QueryInterface(
+		/* [in] */ REFIID riid,
+		/* [iid_is][out] */ void __RPC_FAR* __RPC_FAR* ppvObject)
+	{
+		HRESULT hr = E_NOINTERFACE;
+		if (riid == __uuidof(IUnknown))
+			*ppvObject = (IUnknown*)this, hr = S_OK;
+		else if (riid == __uuidof(IDropTarget))
+			*ppvObject = (IDropTarget*)this, hr = S_OK;
+		if (SUCCEEDED(hr)) AddRef();
+		return hr;
+	}
+
+	virtual ULONG STDMETHODCALLTYPE AddRef(void) { return ++_ref; }
+
+	virtual ULONG STDMETHODCALLTYPE Release(void) {
+		ULONG uRet = --_ref;
+		if (uRet == 0) delete this;
+		return uRet;
+	}
+
+	//IDropTarget
+	virtual HRESULT STDMETHODCALLTYPE DragEnter(
+		/* [unique][in] */ IDataObject* pDataObj,
+		/* [in] */ DWORD grfKeyState,
+		/* [in] */ POINTL pt,
+		/* [out][in] */ DWORD* pdwEffect)
+	{
+		HRESULT hr = S_FALSE;
+		IDropTarget* pDropTarget = NULL;
+		hr = _pserv->TxGetDropTarget(&pDropTarget);
+		if (SUCCEEDED(hr))
+		{
+			hr = pDropTarget->DragEnter(pDataObj, grfKeyState, pt, pdwEffect);
+			*pdwEffect = DROPEFFECT_COPY;
+			pDropTarget->Release();
+		}
+		return hr;
+	}
+
+	virtual HRESULT STDMETHODCALLTYPE DragLeave(void)
+	{
+		HRESULT hr = S_FALSE;
+		IDropTarget* pDropTarget = NULL;
+		hr = _pserv->TxGetDropTarget(&pDropTarget);
+		if (SUCCEEDED(hr))
+		{
+			hr = pDropTarget->DragLeave();
+			pDropTarget->Release();
+		}
+		return hr;
+	}
+
+	virtual HRESULT STDMETHODCALLTYPE DragOver(
+		/* [in] */ DWORD grfKeyState,
+		/* [in] */ POINTL pt,
+		/* [out][in] */ DWORD* pdwEffect)
+	{
+		/*
+		* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½DragOverï¿½ï¿½richeditï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªricheditï¿½ï¿½DragOverÊ±ï¿½á¶¯Ì¬ï¿½ï¿½ï¿½ï¿½
+		* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½Ã£ï¿½ï¿½ï¿½ï¿½ï¿½Ò³ï¿½ï¿½ï¿½ï¿½Ü»ï¿½ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½Â¹ï¿½ï¿½ï¿½
+		*/
+		*pdwEffect = DROPEFFECT_COPY;
+		return S_OK;
+	}
+
+	virtual HRESULT STDMETHODCALLTYPE Drop(
+		/* [unique][in] */ IDataObject* pDataObj,
+		/* [in] */ DWORD grfKeyState,
+		/* [in] */ POINTL pt,
+		/* [out][in] */ DWORD* pdwEffect)
+	{
+		if (*pdwEffect == DROPEFFECT_NONE)
+		{
+			return S_FALSE;
+		}
+
+		if (!_pHost->IsEditable())
+		{
+			/*
+			* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½dropï¿½ï¿½readonly×´Ì¬ï¿½ï¿½richeditï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Îªï¿½ï¿½Ï£ï¿½ï¿½ï¿½Æ»ï¿½richeditï¿½ï¿½ï¿½ï¿½Ñ¡×´Ì¬ï¿½ï¿½
+			*/
+			RichFormatConv conv;
+			if (conv.InitFromDataObject(pDataObj) != 0)
+			{
+				_pHost->AcceptContent(&conv);
+			}
+
+			*pdwEffect = DROPEFFECT_COPY;
+			return DragLeave();
+		}
+
+		HRESULT hr = S_FALSE;
+		IDropTarget* pDropTarget = NULL;
+		hr = _pserv->TxGetDropTarget(&pDropTarget);
+		if (SUCCEEDED(hr))
+		{
+			hr = pDropTarget->Drop(pDataObj, grfKeyState, pt, pdwEffect);
+			pDropTarget->Release();
+		}
+
+		return hr;
+	}
+
+protected:
+
+	IRichEditObjHost* _pHost;
+	ITextServices* _pserv;            // pointer to Text Services object
+	LONG              _ref;
+};
 
 SImRichEdit::SImRichEdit() : _pTextDoc(NULL)
 , _pLastHoverObj(NULL)
@@ -67,7 +305,7 @@ int SImRichEdit::GetCharCount()
 
 void SImRichEdit::DirectDraw(const CRect& rc)
 {
-    if (GetState() & WndState_Invisible) // ²»ÓÃÁ½¸ö&&,²»ÓÃÄÜIsVisible×öÅÐ¶Ï
+    if (GetState() & WndState_Invisible) // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½&&,ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½IsVisibleï¿½ï¿½ï¿½Ð¶ï¿½
         return;
 
     if (!_isDrawEnable || !_pBackgroundRt || _isBackgroundDirty)
@@ -83,27 +321,27 @@ void SImRichEdit::DirectDraw(const CRect& rc)
     rgn->CombineRect(rcClient, RGN_OR);
 
     /*
-    * ÕâÀïÓÐÁ½ÖÖ·½·¨È¥»­±³¾°
-    * - 1.µ÷ÓÃ´°¿ÚµÄGetRenderTarget£¬±È½ÏÕý×Ú£¬µ«ÊÇÈç¹ûrichedit±»Ç¶Ì×µÄ²ã´Î½ÏÉî£¬Ð§ÂÊ¾Í±È½ÏÂý
-    * - 2.×Ô¼ºÎ¬»¤»º´æ±³¾°£¬ÔÚonsizeµÄÊ±ºòÈ¥¸üÐÂ±³¾°¡£ºÃ´¦ÊÇËÙ¶È½Ï¿ì£¬µ«ÊÇ±³¾°ÓÐ¿ÉÄÜÊÇ²»×¼È·µÄ¡£
+    * ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½È¥ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    * - 1.ï¿½ï¿½ï¿½Ã´ï¿½ï¿½Úµï¿½GetRenderTargetï¿½ï¿½ï¿½È½ï¿½ï¿½ï¿½ï¿½Ú£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½richeditï¿½ï¿½Ç¶ï¿½×µÄ²ï¿½Î½ï¿½ï¿½î£¬Ð§ï¿½Ê¾Í±È½ï¿½ï¿½ï¿½
+    * - 2.ï¿½Ô¼ï¿½Î¬ï¿½ï¿½ï¿½ï¿½ï¿½æ±³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½onsizeï¿½ï¿½Ê±ï¿½ï¿½È¥ï¿½ï¿½ï¿½Â±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã´ï¿½ï¿½ï¿½ï¿½Ù¶È½Ï¿ì£¬ï¿½ï¿½ï¿½Ç±ï¿½ï¿½ï¿½ï¿½Ð¿ï¿½ï¿½ï¿½ï¿½Ç²ï¿½×¼È·ï¿½Ä¡ï¿½
     *
-    * ÓÃÄÄÖÖ»­±³¾°¾Í¿´Çé¿öÁË£¬Èç¹û±³¾°ÊÇ´¿É«µÄ£¬ÄÇ¾ÍÓÃµÚ2ÖÖ¿©¡£
+    * ï¿½ï¿½ï¿½ï¿½ï¿½Ö»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¿ï¿½ï¿½ï¿½ï¿½ï¿½Ë£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç´ï¿½É«ï¿½Ä£ï¿½ï¿½Ç¾ï¿½ï¿½Ãµï¿½2ï¿½Ö¿ï¿½ï¿½ï¿½
     *
     * =============================================================================
-    * ¶ÔÓÚ´¥·¢gifµÄË¢ÐÂ£¬Ò²ÓÐÁ½ÖÖ·½·¨
-    * - 1.´¥·¢richeditµÄDrawÊÂ¼þ£¬ÈÃricheditÈ¥´¥·¢oleµÄ»æÖÆÊÂ¼þ¡£
-    *     ÕâÖÖ·½·¨±È½Ï·½±ã£¬ÒòÎªÊÇricheditÈ¥´¥·¢µÄ£¬²»ÐèÒªµ£ÐÄÊ²Ã´Î»ÖÃ¡¢
-    *     Ñ¡ÖÐ×´Ì¬·½ÃæµÄÎÊÌâ£¬µ«ÊÇÐ§ÂÊ½ÏµÍ¡£
+    * ï¿½ï¿½ï¿½Ú´ï¿½ï¿½ï¿½gifï¿½ï¿½Ë¢ï¿½Â£ï¿½Ò²ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½
+    * - 1.ï¿½ï¿½ï¿½ï¿½richeditï¿½ï¿½Drawï¿½Â¼ï¿½ï¿½ï¿½ï¿½ï¿½richeditÈ¥ï¿½ï¿½ï¿½ï¿½oleï¿½Ä»ï¿½ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½
+    *     ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½ï¿½È½Ï·ï¿½ï¿½ã£¬ï¿½ï¿½Îªï¿½ï¿½richeditÈ¥ï¿½ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½Ê²Ã´Î»ï¿½Ã¡ï¿½
+    *     Ñ¡ï¿½ï¿½×´Ì¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½â£¬ï¿½ï¿½ï¿½ï¿½Ð§ï¿½Ê½ÏµÍ¡ï¿½
     *
-    * - 2.Ö±½Ó´«Ò»¸ödc»òÕßrenderTarget¸øole¶ÔÏó£¬ÈÃËüÈ¥»­£¬×îºó
-    *     Ìùµ½´°¿ÚÉÏ¡£ÕâÖÖ·½·¨Ð§ÂÊ½Ï¸ß£¬µ«ÊÇÐèÒª×Ô¼º´¦ÀíÊÇ·ñ±»Ñ¡ÖÐ
-    *     µÈ×´Ì¬£¬±È½ÏÂé·³¡£SoSmiley¾ÍÊÇÓÃÕâÖÖ·½Ê½¡£
+    * - 2.Ö±ï¿½Ó´ï¿½Ò»ï¿½ï¿½dcï¿½ï¿½ï¿½ï¿½renderTargetï¿½ï¿½oleï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¥ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    *     ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¡ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½Ð§ï¿½Ê½Ï¸ß£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½Ô¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç·ï¿½Ñ¡ï¿½ï¿½
+    *     ï¿½ï¿½×´Ì¬ï¿½ï¿½ï¿½È½ï¿½ï¿½é·³ï¿½ï¿½SoSmileyï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½Ê½ï¿½ï¿½
     *
-    * ÕâÀïÓÃµÄÊÇµÚ1ÖÖÈ¥´¥·¢gifË¢ÐÂ,Ð§ÂÊÃãÇ¿»¹¿ÉÒÔ½ÓÊÜ£¬Èç¹ûÓÐÐèÒªÔÙ¸Ä³ÉµÚ2ÖÖ¡£
+    * ï¿½ï¿½ï¿½ï¿½ï¿½Ãµï¿½ï¿½Çµï¿½1ï¿½ï¿½È¥ï¿½ï¿½ï¿½ï¿½gifË¢ï¿½ï¿½,Ð§ï¿½ï¿½ï¿½ï¿½Ç¿ï¿½ï¿½ï¿½ï¿½ï¿½Ô½ï¿½ï¿½Ü£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½Ù¸Ä³Éµï¿½2ï¿½Ö¡ï¿½
     */
 
     /*
-    * ·½·¨1»­±³¾°
+    * ï¿½ï¿½ï¿½ï¿½1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     */
     //IRenderTarget *pRT = GetRenderTarget(OLEDC_PAINTBKGND,rgn);
     //SSendMessage(WM_ERASEBKGND,(WPARAM)pRT);
@@ -111,18 +349,18 @@ void SImRichEdit::DirectDraw(const CRect& rc)
     //ReleaseRenderTarget(pRT);
 
     /*
-    * ·½·¨2»­±³¾°
+    * ï¿½ï¿½ï¿½ï¿½2ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
     */
     //TODO:
-//     int n = GetTickCount();
-//     CAutoRefPtr<IRenderTarget> pRT = GetContainer()->OnGetRenderTarget(rcClient, 0);
-//     pRT->BitBlt(rcClient, _pBackgroundRt, rcClient.left, rcClient.top);
-//     int n1 = GetTickCount() - n;
-// 
-//     n = GetTickCount();
-//     RedrawRegion(pRT, rgn);
-//     GetContainer()->OnReleaseRenderTarget(pRT, rcClient, 0);
-//     int n2 = GetTickCount() - n;
+    int n = GetTickCount();
+    CAutoRefPtr<IRenderTarget> pRT = GetRenderTarget(rcClient);
+    pRT->BitBlt(rcClient, _pBackgroundRt, rcClient.left, rcClient.top);
+    int n1 = GetTickCount() - n;
+
+    n = GetTickCount();
+    RedrawRegion(pRT, rgn);
+    ReleaseRenderTarget(pRT);
+    int n2 = GetTickCount() - n;
 
     //STRACE(L"direct draw:%d, n1:%d, n2:%d", GetTickCount(), n1, n2);
 }
@@ -149,8 +387,7 @@ ITextDocument* SImRichEdit::GetTextDoc()
 
 ITextServices* SImRichEdit::GetTextServ()
 {
-    //return m_pTxtHost.GetTextService();
-    return NULL;
+    return m_pTxtHost->GetTextService();
 }
 
 BOOL SImRichEdit::AcceptContent(RichFormatConv* conv)
@@ -208,13 +445,13 @@ void SImRichEdit::Activate()
 }
 
 /*
-* ²åÈëÄÚÈÝµ½richedit
-* @param lpszContent: XML¸ñÊ½µÄÄÚÈÝ
-* @param uInsertAt:   ²åÈëµÄÎ»ÖÃ£¬³ýÕý³£µÄÈ¡Öµ·¶Î§Ö®Íâ£¬»¹¿ÉÒÔÈ¡ÒÔÏÂÁ½¸öÖµ
-*                     - RECONTENT_LAST   £º ²åÈëµ½×îºó
-*                     - RECONTENT_CARET  £º ²åÈëµ½¹â±ê´¦
+* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ýµï¿½richedit
+* @param lpszContent: XMLï¿½ï¿½Ê½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+* @param uInsertAt:   ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½Ã£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¡Öµï¿½ï¿½Î§Ö®ï¿½â£¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öµ
+*                     - RECONTENT_LAST   ï¿½ï¿½ ï¿½ï¿½ï¿½ëµ½ï¿½ï¿½ï¿½
+*                     - RECONTENT_CARET  ï¿½ï¿½ ï¿½ï¿½ï¿½ëµ½ï¿½ï¿½ê´¦
 *
-* @return UINT: ÏûÏ¢Êµ¼Ê²åÈëµÄÎ»ÖÃ
+* @return UINT: ï¿½ï¿½Ï¢Êµï¿½Ê²ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½
 */
 UINT SImRichEdit::InsertContent(LPCWSTR lpszContent, UINT uInsertAt/* = RECONTENT_LAST*/)
 {
@@ -232,6 +469,7 @@ UINT SImRichEdit::InsertContent(LPCWSTR lpszContent, UINT uInsertAt/* = RECONTEN
             chr = _richContents.GetAt(uInsertAt - 1)->GetCharRange();
             SetSel(chr.cpMax, chr.cpMax);
         }
+        _richContents.Add(p);
     }
     else
     {
@@ -251,9 +489,9 @@ UINT SImRichEdit::InsertContent(LPCWSTR lpszContent, UINT uInsertAt/* = RECONTEN
 
 	if (_isDragging)
 	{
-		// Èç¹ûÔÚÍÏ×§×´Ì¬ÏÂ²åÈëÁËÄÚÈÝ£¬ÔÝÊ±²»ÄÜÉèÖÃSetReadOnly(TRUE)£¬ ·ñÔò»á±ÀÀ££¬
-		// ¾ßÌåÔ­Òò¼ûOnMouseMoveµÄ×¢ÊÍ¡£
-		// Ó¦¸ÃµÈµ½ÍÏ×§½áÊøºó(Ò²¾ÍÊÇÔÚ__super::OnMouseMove½áÊøÖ®ºó)ÔÙÉèÖÃÖ»¶ÁÊôÐÔ
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×§×´Ì¬ï¿½Â²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý£ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½SetReadOnly(TRUE)ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+		// ï¿½ï¿½ï¿½ï¿½Ô­ï¿½ï¿½ï¿½OnMouseMoveï¿½ï¿½×¢ï¿½Í¡ï¿½
+		// Ó¦ï¿½ÃµÈµï¿½ï¿½ï¿½×§ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(Ò²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½__super::OnMouseMoveï¿½ï¿½ï¿½ï¿½Ö®ï¿½ï¿½)ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		ctx.bReadOnly = FALSE;
 	}
 
@@ -299,49 +537,57 @@ UINT SImRichEdit::GetContentCount()
 
 SStringW SImRichEdit::GetSelectedContent(CHARRANGE* lpchrg/* = NULL*/)
 {
-    SASSERT(lpchrg != NULL);
+	SASSERT(lpchrg != NULL);
 
 	CHARRANGE selChr = *lpchrg;
 	selChr.cpMin = (selChr.cpMin < 0) ? 0 : selChr.cpMin;
 	selChr.cpMax = (selChr.cpMax == -1) ? GetCharCount() : selChr.cpMax;
+
 	SStringW subText;
 	SStringW content = L"<RichEditContent>";
 
-// 	SComPtr<IRichEditOle> ole;
-// 	SSendMessage(EM_GETOLEINTERFACE, 0, (LPARAM)&ole);
-// 	int oleCount = ole->GetObjectCount();
-// 	int oleCp = 0;
-// 	for (int i = 0; i < oleCount && oleCp < selChr.cpMax; ++i)
-// 	{
-// 		REOBJECT reobj = { 0 };
-// 		reobj.cbStruct = sizeof(REOBJECT);
-// 		if (FAILED(ole->GetObject(i, &reobj, REO_GETOBJ_POLEOBJ)))
-// 			break;
-// 
-// 		oleCp = reobj.cp;
-// 		if (reobj.cp < selChr.cpMin || reobj.cp >= selChr.cpMax)
-// 		{
-// 			reobj.poleobj->Release();
-// 			continue;
-// 		}
-// 		if (selChr.cpMin < reobj.cp)
-// 		{
-// 			CHARRANGE chr = { selChr.cpMin, reobj.cp };
-// 			GetRangeText(chr, subText);
-// 			content += RichEditText::MakeFormatedText(subText);
-// 		}
-// 		RichEditOleBase* pOle = static_cast<RichEditOleBase*>(reobj.poleobj);
-// 		content += pOle->GetSelFormatedText();
-// 
-// 		reobj.poleobj->Release();
-// 		selChr.cpMin = reobj.cp + 1;
-//	}
-// 	if (selChr.cpMin < selChr.cpMax)
-// 	{
-// 		CHARRANGE chr = { selChr.cpMin, selChr.cpMax };
-// 		GetRangeText(chr, subText);
-// 		content += RichEditText::MakeFormatedText(subText);
-// 	}
+	SComPtr<IRichEditOle> ole;
+	SSendMessage(EM_GETOLEINTERFACE, 0, (LPARAM)&ole);
+	int oleCount = ole->GetObjectCount();
+
+	int oleCp = 0;
+	for (int i = 0; i < oleCount && oleCp < selChr.cpMax; ++i)
+	{
+		REOBJECT reobj = { 0 };
+		reobj.cbStruct = sizeof(REOBJECT);
+
+		if (FAILED(ole->GetObject(i, &reobj, REO_GETOBJ_POLEOBJ)))
+		{
+			break;
+		}
+
+		oleCp = reobj.cp;
+		if (reobj.cp < selChr.cpMin || reobj.cp >= selChr.cpMax)
+		{
+			reobj.poleobj->Release();
+			continue;
+		}
+
+		if (selChr.cpMin < reobj.cp)
+		{
+			CHARRANGE chr = { selChr.cpMin, reobj.cp };
+			GetRangeText(chr, subText);
+			content += RichEditText::MakeFormatedText(subText);
+		}
+
+		RichEditOleAdapter* pOle = static_cast<RichEditOleAdapter*>(reobj.poleobj);
+		content += pOle->_pHost->GetSelFormatedText();
+
+		reobj.poleobj->Release();
+		selChr.cpMin = reobj.cp + 1;
+	}
+
+	if (selChr.cpMin < selChr.cpMax)
+	{
+		CHARRANGE chr = { selChr.cpMin, selChr.cpMax };
+		GetRangeText(chr, subText);
+		content += RichEditText::MakeFormatedText(subText);
+	}
 
 	content += L"</RichEditContent>";
 	return content;
@@ -431,54 +677,52 @@ RichEditOleBase* SImRichEdit::GetOleById(LPCWSTR lpszId)
 {
 	RichEditObj* pObj = GetElementById(lpszId);
 	SStringW cn = pObj->GetClassName();
-	//RichEditOleBase * pOle = dynamic_cast<RichEditOleBase*>(pObj);
+	RichEditOleBase * pOle = dynamic_cast<RichEditOleBase*>(pObj);
 
-// 	RichEditOleBase* pOle = static_cast<RichEditOleBase*>(pObj);
-// 	return pOle;
 
-	return NULL;
+ 	return pOle;
 }
 
 /*
- * »ñÈ¡Ö¸¶¨×Ö·ûÎ»ÖÃµÄole
- * @param cp: ×Ö·ûÎ»ÖÃ¡£Èç¹û<0£¬Ôò×Ô¶¯»ñÈ¡µ±Ç°Ñ¡ÔñÄÚÈÝµÄ×Ö·ûÎ»ÖÃ¡£Èç¹ûÑ¡ÔñÄÚÈÝ>1£¬·µ»ØNULL¡£
- * return: ¶ÔÓ¦µÄoleÖ¸Õë£¬Èç¹û¸ø¶¨µÄcp²»ÊÇole£¬·µ»ØNULL
+ * ï¿½ï¿½È¡Ö¸ï¿½ï¿½ï¿½Ö·ï¿½Î»ï¿½Ãµï¿½ole
+ * @param cp: ï¿½Ö·ï¿½Î»ï¿½Ã¡ï¿½ï¿½ï¿½ï¿½<0ï¿½ï¿½ï¿½ï¿½ï¿½Ô¶ï¿½ï¿½ï¿½È¡ï¿½ï¿½Ç°Ñ¡ï¿½ï¿½ï¿½ï¿½ï¿½Ýµï¿½ï¿½Ö·ï¿½Î»ï¿½Ã¡ï¿½ï¿½ï¿½ï¿½Ñ¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½>1ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½NULLï¿½ï¿½
+ * return: ï¿½ï¿½Ó¦ï¿½ï¿½oleÖ¸ï¿½ë£¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½cpï¿½ï¿½ï¿½ï¿½oleï¿½ï¿½ï¿½ï¿½ï¿½ï¿½NULL
  */
 RichEditOleBase* SImRichEdit::GetSelectedOle(int cp/* = -1*/)
 {
 	RichEditOleBase* pOleObject = NULL;
 
-// 	SComPtr<IRichEditOle> ole;
-// 	SSendMessage(EM_GETOLEINTERFACE, 0, (LPARAM)&ole);
-// 
-// 	if (cp < 0)
-// 	{
-// 		CHARRANGE chrSel;
-// 		GetSel(&chrSel.cpMin, &chrSel.cpMax);
-// 		if (chrSel.cpMax - chrSel.cpMin != 1)
-// 		{
-// 			return NULL;
-// 		}
-// 
-// 		cp = chrSel.cpMin;
-// 	}
-// 
-// 	REOBJECT reo = { 0 };
-// 	reo.cp = cp;
-// 	reo.cbStruct = sizeof(REOBJECT);
-// 
-// 	if (ole->GetObject(REO_IOB_USE_CP, &reo, REO_GETOBJ_POLEOBJ) == S_OK)
-// 	{
-// 		pOleObject = static_cast<RichEditOleBase*>(reo.poleobj);
-// 		if (!pOleObject)
-// 		{
-// 			//
-// 			// µ÷ÓÃÕßÐèÒªµ÷ÓÃRelease
-// 			// ÕâÀïÖ»ÊÇ·ÀÖ¹pOleObjectÎª¿ÕÊ±£¬ÍâÃæÎÞ·¨µ÷ÓÃRelease¶ø×öµÄ±£»¤£¬±ÜÃâÐ¹Â©
-// 			//
-// 			reo.poleobj->Release();
-// 		}
-// 	}
+	SComPtr<IRichEditOle> ole;
+	SSendMessage(EM_GETOLEINTERFACE, 0, (LPARAM)&ole);
+
+	if (cp < 0)
+	{
+		CHARRANGE chrSel;
+		GetSel(&chrSel.cpMin, &chrSel.cpMax);
+		if (chrSel.cpMax - chrSel.cpMin != 1)
+		{
+			return NULL;
+		}
+
+		cp = chrSel.cpMin;
+	}
+
+	REOBJECT reo = { 0 };
+	reo.cp = cp;
+	reo.cbStruct = sizeof(REOBJECT);
+
+	if (ole->GetObject(REO_IOB_USE_CP, &reo, REO_GETOBJ_POLEOBJ) == S_OK)
+	{
+		pOleObject = dynamic_cast<RichEditOleBase*>(reo.poleobj);
+		if (!pOleObject)
+		{
+			//
+			// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½Release
+			// ï¿½ï¿½ï¿½ï¿½Ö»ï¿½Ç·ï¿½Ö¹pOleObjectÎªï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Þ·ï¿½ï¿½ï¿½ï¿½ï¿½Releaseï¿½ï¿½ï¿½ï¿½ï¿½Ä±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð¹Â©
+			//
+			reo.poleobj->Release();
+		}
+	}
 
 	return pOleObject;
 }
@@ -503,10 +747,10 @@ UINT SImRichEdit::DeleteContent(RichEditContent* prec)
 }
 
 /*
- * »ñÈ¡¹â±êµÄÎ»ÖÃ£¬Î»ÖÃÊÇÏà¶ÔÓÚÆÁÄ»µÄ×óÉÏ½Ç¡£
- * Î»ÖÃÊÇÊµÊ±¼ÆËãµÄ£¬Ð§ÂÊ½ÏGetCaretRect2µÍ£¬Í¨³£ÓÃÀ´»ñµÃ¾«È·µÄ¹â±êÎ»ÖÃ¡£
+ * ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½Î»ï¿½Ã£ï¿½Î»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä»ï¿½ï¿½ï¿½ï¿½ï¿½Ï½Ç¡ï¿½
+ * Î»ï¿½ï¿½ï¿½ï¿½ÊµÊ±ï¿½ï¿½ï¿½ï¿½Ä£ï¿½Ð§ï¿½Ê½ï¿½GetCaretRect2ï¿½Í£ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã¾ï¿½È·ï¿½Ä¹ï¿½ï¿½Î»ï¿½Ã¡ï¿½
  *
- * @param rcCursor: Êä³öµÄ¹â±êÎ»ÖÃ
+ * @param rcCursor: ï¿½ï¿½ï¿½ï¿½Ä¹ï¿½ï¿½Î»ï¿½ï¿½
  * @return BOOL: TRUE
  */
 BOOL SImRichEdit::GetCaretRect(CRect& rcCaret)
@@ -526,8 +770,8 @@ BOOL SImRichEdit::GetCaretRect(CRect& rcCaret)
 	if (!prange)
 		return FALSE;
 
-	// http://technet.microsoft.com/zh-cn/hh768766(v=vs.90) ÐÂÀàÐÍ¶¨Òå
-#define _tomClientCoord     256  // Ä¬ÈÏ»ñÈ¡µ½µÄÊÇÆÁÄ»×ø±ê£¬ Use client coordinates instead of screen coordinates.
+	// http://technet.microsoft.com/zh-cn/hh768766(v=vs.90) ï¿½ï¿½ï¿½ï¿½ï¿½Í¶ï¿½ï¿½ï¿½
+#define _tomClientCoord     256  // Ä¬ï¿½Ï»ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä»ï¿½ï¿½ï¿½ê£¬ Use client coordinates instead of screen coordinates.
 #define _tomAllowOffClient  512  // Allow points outside of the client area.
 
 	POINT ptStart = { 0,0 };
@@ -551,10 +795,10 @@ BOOL SImRichEdit::GetCaretRect(CRect& rcCaret)
 }
 
 /*
- * »ñÈ¡¹â±êµÄÎ»ÖÃ£¬Î»ÖÃÊÇÏà¶ÔÓÚricheditµÄ×óÉÏ½Ç¡£
- * Î»ÖÃ²¢²»ÊÇÊµÊ±µÄ£¬Í¨³£¿ÉÒÔÓÃÀ´µÃµ½¹â±ê¸ß¶È¡£
+ * ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½Î»ï¿½Ã£ï¿½Î»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½richeditï¿½ï¿½ï¿½ï¿½ï¿½Ï½Ç¡ï¿½
+ * Î»ï¿½Ã²ï¿½ï¿½ï¿½ï¿½ï¿½ÊµÊ±ï¿½Ä£ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ãµï¿½ï¿½ï¿½ï¿½ß¶È¡ï¿½
  *
- * @param rcCursor: Êä³öµÄ¹â±êÎ»ÖÃ
+ * @param rcCursor: ï¿½ï¿½ï¿½ï¿½Ä¹ï¿½ï¿½Î»ï¿½ï¿½
  * @return BOOL: TRUE
  */
 BOOL SImRichEdit::GetCaretRect2(CRect& rcCaret)
@@ -565,28 +809,28 @@ BOOL SImRichEdit::GetCaretRect2(CRect& rcCaret)
 
 BOOL SImRichEdit::CanPaste()
 {
-// 	RichFormatConv::ClipboardFmts fmts;
-// 	RichFormatConv conv;
-// 
-// 	conv.GetSupportedFormatsFromClipboard(fmts);
-// 	for (UINT i = 0; i < fmts.GetCount(); ++i)
-// 	{
-// 		if (IsClipboardFormatAvailable(fmts[i]))
-// 		{
-// 			return TRUE;
-// 		}
-// 	}
+	RichFormatConv::ClipboardFmts fmts;
+	RichFormatConv conv;
+
+	conv.GetSupportedFormatsFromClipboard(fmts);
+	for (UINT i = 0; i < fmts.GetCount(); ++i)
+	{
+		if (IsClipboardFormatAvailable(fmts[i]))
+		{
+			return TRUE;
+		}
+	}
 
 	return FALSE;
 }
 
 /*
- * ¸üÐÂ±³¾°»º´æ£¬Í¨³£ÔÚOnSizeµ÷ÓÃ¸Ãº¯Êý¡£¸Ãº¯ÊýÖ»ÊÇÐÞ¸Ä±³¾°»º´æµÄ´óÐ¡¡£
- * ÔÚOnSizeÀïµ÷ÓÃGetContainer()->OnGetRenderTarget»áÓÐÎÊÌâ£¬ËùÒÔ±³¾°µÄ»æÖÆ¹¤×÷·ÅÔÚOnPaint
+ * ï¿½ï¿½ï¿½Â±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½æ£¬Í¨ï¿½ï¿½ï¿½ï¿½OnSizeï¿½ï¿½ï¿½Ã¸Ãºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ãºï¿½ï¿½ï¿½Ö»ï¿½ï¿½ï¿½Þ¸Ä±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä´ï¿½Ð¡ï¿½ï¿½
+ * ï¿½ï¿½OnSizeï¿½ï¿½ï¿½ï¿½ï¿½GetContainer()->OnGetRenderTargetï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½â£¬ï¿½ï¿½ï¿½Ô±ï¿½ï¿½ï¿½ï¿½Ä»ï¿½ï¿½Æ¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½OnPaint
  */
 void SImRichEdit::UpdateBkgndRenderTarget()
 {
-	// ¸üÐÂ±³¾°RenderTarget
+	// ï¿½ï¿½ï¿½Â±ï¿½ï¿½ï¿½RenderTarget
 	CRect rcWnd = GetClientRect();
 	if (!_pBackgroundRt)
 	{
@@ -618,23 +862,23 @@ void SImRichEdit::SetAutoFixVScroll(BOOL fix)
 }
 
 /*
- * richeditÓÐÒ»¸öRETID_BGND_RECALC¶¨Ê±Æ÷£¬ÓÃ×÷ÑÓ³ÙÅÅ°æ¡£
- * richeditÄÚ²¿Èç¹ûÒªÅÅ°æ»áÏÈÉèÖÃÒ»¸ö¶¨Ê±Æ÷£¬ÔÚ»¹Ã»´¥·¢Õâ¸ö¶¨Ê±Æ÷Ö®Ç°£¬Èç¹ûÓÖÒªÅÅ°æ£¬ÄÇÃ´¾ÍÖØÐÂÉèÖÃ¶¨Ê±Æ÷£¬
- * ÕâÑù¾Í¿ÉÒÔ±ÜÃâÌ«Æµ·±µÄÅÅ°æµ¼ÖÂÐ§ÂÊµÍÏÂ¡£
- *¡¡
- * ¸Ãº¯ÊýÖ÷¶¯Ïòrichedit·¢ËÍÖØÐÂÅÅ°æµÄ¶¨Ê±Æ÷£¬Ç¿ÖÆÈÃrichedit½øÐÐÖØÅÅ°æ
+ * richeditï¿½ï¿½Ò»ï¿½ï¿½RETID_BGND_RECALCï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ó³ï¿½ï¿½Å°æ¡£
+ * richeditï¿½Ú²ï¿½ï¿½ï¿½ï¿½Òªï¿½Å°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½Ú»ï¿½Ã»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½Ö®Ç°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½Å°æ£¬ï¿½ï¿½Ã´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã¶ï¿½Ê±ï¿½ï¿½ï¿½ï¿½
+ * ï¿½ï¿½ï¿½ï¿½ï¿½Í¿ï¿½ï¿½Ô±ï¿½ï¿½ï¿½Ì«Æµï¿½ï¿½ï¿½ï¿½ï¿½Å°æµ¼ï¿½ï¿½Ð§ï¿½Êµï¿½ï¿½Â¡ï¿½
+ *ï¿½ï¿½
+ * ï¿½Ãºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½richeditï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å°ï¿½Ä¶ï¿½Ê±ï¿½ï¿½ï¿½ï¿½Ç¿ï¿½ï¿½ï¿½ï¿½richeditï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å°ï¿½
  */
 void SImRichEdit::ForceUpdateLayout()
 {
-	//OnTimer2(RETID_BGND_RECALC);
+	OnTimer(RETID_BGND_RECALC);
 }
 
 /*
- * ÖØÐÂ¼ÆËãcontentµÄcharrange¡£Í¨³£ÔÚconetentÁÐ±íÖÐ¼ä²åÈë¡¢É¾³ýÁËÄ³¸öcontentÊ±£¬
- * ÐèÒªÖØÐÂ¼ÆËãÐÞ¸ÄÎ»ÖÃÒÔÏÂµÄconent charrange¡£
+ * ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½contentï¿½ï¿½charrangeï¿½ï¿½Í¨ï¿½ï¿½ï¿½ï¿½conetentï¿½Ð±ï¿½ï¿½Ð¼ï¿½ï¿½ï¿½ë¡¢É¾ï¿½ï¿½ï¿½ï¿½Ä³ï¿½ï¿½contentÊ±ï¿½ï¿½
+ * ï¿½ï¿½Òªï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½ï¿½Þ¸ï¿½Î»ï¿½ï¿½ï¿½ï¿½ï¿½Âµï¿½conent charrangeï¿½ï¿½
  *
- * @param start: ÐèÒª¼ÆËãcontentµÄÆðÊ¼Î»ÖÃ
- * @param offset: content charrangeµÄÆ«ÒÆ¡£ÓÐ¿ÉÄÜÊÇ¸ºÊý
+ * @param start: ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½contentï¿½ï¿½ï¿½ï¿½Ê¼Î»ï¿½ï¿½
+ * @param offset: content charrangeï¿½ï¿½Æ«ï¿½Æ¡ï¿½ï¿½Ð¿ï¿½ï¿½ï¿½ï¿½Ç¸ï¿½ï¿½ï¿½
  */
 void SImRichEdit::ReLocateContents(UINT start, int offset)
 {
@@ -666,11 +910,11 @@ BOOL SImRichEdit::GetContentIndex(LPCWSTR pszId, UINT& index)
 }
 
 /*
- * ´ÓÖ¸¶¨µÄÏÂ±ê¿ªÊ¼¸üÐÂcontentµÄÎ»ÖÃ
- * @param start: ¿ªÊ¼¸üÐÂcontentµÄÏÂ±ê
- * @param end:   ½áÊø¸üÐÂµÄcontentÏÂ±ê
+ * ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½ï¿½Â±ê¿ªÊ¼ï¿½ï¿½ï¿½ï¿½contentï¿½ï¿½Î»ï¿½ï¿½
+ * @param start: ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½contentï¿½ï¿½ï¿½Â±ï¿½
+ * @param end:   ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Âµï¿½contentï¿½Â±ï¿½
  *
- * ¸üÐÂ·¶Î§ÊÇ[start, end)
+ * ï¿½ï¿½ï¿½Â·ï¿½Î§ï¿½ï¿½[start, end)
  */
 void SImRichEdit::UpdateContentPosition(UINT start, UINT end/* = RECONTENT_LAST*/)
 {
@@ -681,7 +925,7 @@ void SImRichEdit::UpdateContentPosition(UINT start, UINT end/* = RECONTENT_LAST*
 	for (size_t n = start; n < end && n < _richContents.GetCount(); ++n)
 		_richContents.GetAt(n)->UpdatePosition();
 
-	ctx.bHasScrollBar = HasScrollBar(TRUE); //Ç¿ÖÆ²»Ë¢¹ö¶¯Ìõ
+	ctx.bHasScrollBar = HasScrollBar(TRUE); //Ç¿ï¿½Æ²ï¿½Ë¢ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	DoneUpdate(ctx);
 
 	UpdateVisibleCharRanges();
@@ -817,7 +1061,7 @@ void SImRichEdit::SetAutoVScroll(BOOL bEnabled)
 	else
 		m_dwStyle &= ~ES_AUTOVSCROLL;
 
-	//m_pTxtHost->GetTextService()->OnTxPropertyBitsChange(TXTBIT_SCROLLBARCHANGE, TXTBIT_SCROLLBARCHANGE);
+	m_pTxtHost->GetTextService()->OnTxPropertyBitsChange(TXTBIT_SCROLLBARCHANGE, TXTBIT_SCROLLBARCHANGE);
 }
 
 BOOL SImRichEdit::IsAutoVScroll()
@@ -867,13 +1111,13 @@ BOOL SImRichEdit::SetDefCharFormat(CHARFORMAT& cf)
 }
 
 /*
- * ´´½¨¹â±ê£¬ÓÉricheditµ÷ÓÃ
- * @param pBmp:    ¹â±êÎ»Í¼
- * @param nWid:    ¹â±ê¿í¶È
- * @param nHeight: ¹â±ê¸ß¶È
- * @return BOOL:   TRUE:´´½¨³É¹¦,FASLE:´´½¨Ê§°Ü
+ * ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ê£¬ï¿½ï¿½richeditï¿½ï¿½ï¿½ï¿½
+ * @param pBmp:    ï¿½ï¿½ï¿½Î»Í¼
+ * @param nWid:    ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+ * @param nHeight: ï¿½ï¿½ï¿½ß¶ï¿½
+ * @return BOOL:   TRUE:ï¿½ï¿½ï¿½ï¿½ï¿½É¹ï¿½,FASLE:ï¿½ï¿½ï¿½ï¿½Ê§ï¿½ï¿½
  *
- * note: ÔÚÓÐÑ¡ÖÐÄÚÈÝÊ±£¬richedit´«µÝ¹ýÀ´µÄ¿í¡¢¸ßÐÅÏ¢ºÍpBmpËùÐ¯´øµÄ¿í¸ßÓÐÊ±ºò²¢²»Ò»ÖÂ
+ * note: ï¿½ï¿½ï¿½ï¿½Ñ¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½richeditï¿½ï¿½ï¿½Ý¹ï¿½ï¿½ï¿½ï¿½Ä¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢ï¿½ï¿½pBmpï¿½ï¿½Ð¯ï¿½ï¿½ï¿½Ä¿ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ò²¢²ï¿½Ò»ï¿½ï¿½
  */
 BOOL SImRichEdit::CreateCaret(HBITMAP pBmp, int nWid, int nHeight)
 {
@@ -883,13 +1127,13 @@ BOOL SImRichEdit::CreateCaret(HBITMAP pBmp, int nWid, int nHeight)
 }
 
 /*
- * ÉèÖÃ¹â±êÎ»ÖÃ£¬ÓÉricheditµ÷ÓÃ
+ * ï¿½ï¿½ï¿½Ã¹ï¿½ï¿½Î»ï¿½Ã£ï¿½ï¿½ï¿½richeditï¿½ï¿½ï¿½ï¿½
  */
 void SImRichEdit::SetCaretPos(int x, int y)
 {
 	caretRect.left = x;
 	caretRect.top = y;
-	return SetCaretPos(x, y);
+	__super::SetCaretPos(x, y);
 }
 
 BOOL SImRichEdit::IsRenderTargetEmpty(IRenderTarget* pRt)
@@ -912,13 +1156,13 @@ BOOL SImRichEdit::IsRenderTargetEmpty(IRenderTarget* pRt)
 
 void SImRichEdit::EnableDragDrop(BOOL enable)
 {
-// 	GetContainer()->RevokeDragDrop(m_swnd);
-// 	if (enable)
-// 	{
+	RevokeDragDrop((HWND)m_swnd);
+	if (enable)
+	{
 // 		RichEditDropTarget* pdt = new RichEditDropTarget(this);
 // 		GetContainer()->RegisterDragDrop(m_swnd, pdt);
 // 		pdt->Release();
-// 	}
+	}
 }
 
 RichEditObj* SImRichEdit::HitTest(RichEditObj* pObject, POINT ptInControl)
@@ -942,18 +1186,25 @@ RichEditContent* SImRichEdit::CreateRichEditConent(LPCWSTR lpszContent)
 		return NULL;
 
 	RichEditContent* pRet = NULL;
-// 	unsigned int flag = pugi::parse_cdata | pugi::parse_escapes | pugi::parse_eol;
-// 	pugi::xml_document  doc;
-// 	int status = doc.load_buffer(lpszContent, wcslen(lpszContent) * sizeof(WCHAR), flag);
-// 	if (doc.load_buffer(lpszContent, wcslen(lpszContent) * sizeof(WCHAR), flag))
-// 	{
-// 		pRet = new RichEditContent();
+	unsigned int flag = pugi::parse_cdata | pugi::parse_escapes | pugi::parse_eol;
+	pugi::xml_document  doc;
+	int status = doc.load_buffer(lpszContent, wcslen(lpszContent) * sizeof(WCHAR), flag);
+	if (doc.load_buffer(lpszContent, wcslen(lpszContent) * sizeof(WCHAR), flag))
+	{
+ 		pRet = new RichEditContent();
 // 		if (!pRet->InitFromXml(doc.child(RichEditContent::GetClassName())))
 // 		{
 // 			delete pRet;
 // 			return NULL;
 // 		}
-// 	}
+
+		SXmlNode xmlNode = doc.root().first_child();
+		if (!pRet->InitFromXml(&xmlNode))
+		{
+			delete pRet;
+			return NULL;
+		}
+	}
 
 	return pRet;
 }
@@ -971,7 +1222,7 @@ void SImRichEdit::DoneUpdate(const UpdateContext& context)
 {
 	if (context.bHasScrollBar != HasScrollBar(TRUE))
 	{
-		//¹ö¶¯Ìõ·¢ÉúÁË±ä»¯,È«²¿ÄÚÈÝÒªÖØÐÂ²¼¾Ö
+		//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë±ä»¯,È«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½Â²ï¿½ï¿½ï¿½
 		for (size_t npos = 0; npos < _richContents.GetCount(); ++npos)
 			_richContents.GetAt(npos)->OffsetCharRange(0);
 	}
@@ -981,13 +1232,13 @@ void SImRichEdit::DoneUpdate(const UpdateContext& context)
 }
 
 /*
- * ÔÚÖ÷¶¯¸üÐÂ±³¾°Ê±ÓÉÓÚÊÇÖ±½Ó¸üÐÂµ½DCÉÏµÄ£¬¶ø²»ÊÇ´Ó×îµ×²ãµÄwindowÒ»Ö±»­µ½richeditÕâÒ»²ã£¬
- * ËùÒÔ¸²¸ÇÔÚSImRichEditÉÏµÄ¿Ø¼þ¶¼»á±»²Áµô¡£¸Ãº¯Êý°ÑSImRichEditµÄ×Ó¿Ø¼þÎ»ÖÃ¶¼Áô³öÀ´¡£
+ * ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â±ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö±ï¿½Ó¸ï¿½ï¿½Âµï¿½DCï¿½ÏµÄ£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç´ï¿½ï¿½ï¿½×²ï¿½ï¿½windowÒ»Ö±ï¿½ï¿½ï¿½ï¿½richeditï¿½ï¿½Ò»ï¿½ã£¬
+ * ï¿½ï¿½ï¿½Ô¸ï¿½ï¿½ï¿½ï¿½ï¿½SImRichEditï¿½ÏµÄ¿Ø¼ï¿½ï¿½ï¿½ï¿½á±»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ãºï¿½ï¿½ï¿½ï¿½ï¿½SImRichEditï¿½ï¿½ï¿½Ó¿Ø¼ï¿½Î»ï¿½Ã¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
  *
- * @param pWnd: ´°¿ÚµÄÖ¸Õë£¬Í¨³£ÊÇricheditµÄÖ¸Õë
- * @param prgn: ´°¿ÚµÄ±³¾°RGN
+ * @param pWnd: ï¿½ï¿½ï¿½Úµï¿½Ö¸ï¿½ë£¬Í¨ï¿½ï¿½ï¿½ï¿½richeditï¿½ï¿½Ö¸ï¿½ï¿½
+ * @param prgn: ï¿½ï¿½ï¿½ÚµÄ±ï¿½ï¿½ï¿½RGN
  *
- * ¸Ãº¯Êý±éÀúpWndµÄ×Ó´°¿Ú£¬°Ñ×Ó´°¿ÚµÄÎ»ÖÃ´ÓRGNÀïÈ¥µô¡£
+ * ï¿½Ãºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½pWndï¿½ï¿½ï¿½Ó´ï¿½ï¿½Ú£ï¿½ï¿½ï¿½ï¿½Ó´ï¿½ï¿½Úµï¿½Î»ï¿½Ã´ï¿½RGNï¿½ï¿½È¥ï¿½ï¿½ï¿½ï¿½
  */
 void SImRichEdit::ClipChildren(SWindow* pWnd, IRegionS* prgn)
 {
@@ -1008,25 +1259,18 @@ void SImRichEdit::DrawScrollbar(BOOL bVertical, UINT uCode, int nPos)
 {
 	SCROLLINFO* psi = bVertical ? (&m_siVer) : (&m_siHoz);
 
-// 	if (uCode != SB_THUMBTRACK && IsVisible(TRUE))
-// 	{
-// 		CRect rcRail = GetScrollBarRect(bVertical);
-// 		if (bVertical)
-// 		{
-// 			rcRail.DeflateRect(0, GetSbArrowSize());
-// 		}
-// 		else
-// 		{
-// 			rcRail.DeflateRect(GetSbArrowSize(), 0);
-// 		}
-// 
-// 		CAutoRefPtr<IRenderTarget> pRT = GetRenderTarget(&rcRail, OLEDC_PAINTBKGND, FALSE);
-// 		m_pSkinSb->Draw(pRT, rcRail, MAKESBSTATE(SB_PAGEDOWN, SBST_NORMAL, bVertical));
-// 		psi->nTrackPos = -1;
-// 		CRect rcSlide = GetSbPartRect(bVertical, SB_THUMBTRACK);
-// 		m_pSkinSb->Draw(pRT, rcSlide, MAKESBSTATE(SB_THUMBTRACK, SBST_NORMAL, bVertical));
-// 		ReleaseRenderTarget(pRT);
-// 	}
+	if (uCode != SB_THUMBTRACK && IsVisible(TRUE))
+	{
+		CRect rcRail = GetScrollBarRect(bVertical);
+		rcRail.DeflateRect(GetScrollBarArrowSize(bVertical), 0);
+
+		CAutoRefPtr<IRenderTarget> pRT = GetRenderTarget(&rcRail, GRT_PAINTBKGND, FALSE);
+		//m_pSkinSb->Draw(pRT, rcRail, MAKESBSTATE(SB_PAGEDOWN, SBST_NORMAL, bVertical));
+		psi->nTrackPos = -1;
+		CRect rcSlide = GetScrollBarRect(bVertical);
+		//m_pSkinSb->Draw(pRT, rcSlide, MAKESBSTATE(SB_THUMBTRACK, SBST_NORMAL, bVertical));
+		ReleaseRenderTarget(pRT);
+	}
 }
 
 void SImRichEdit::SetContentsDirty()
@@ -1040,20 +1284,20 @@ void SImRichEdit::SetContentsDirty()
 
 void SImRichEdit::DrawVisibleGifs(IRenderTarget* pRt, const CRect& validRgnRect)
 {
-// 	CComPtr<IRichEditOle>  ole;
-// 	SSendMessage(EM_GETOLEINTERFACE, 0, (LPARAM)&ole);
-// 
-// 	for (int i = _visibleOleChr.cpMin; i <= _visibleOleChr.cpMax; i++)
-// 	{
-// 		REOBJECT reobj = { 0 };
-// 		reobj.cbStruct = sizeof(REOBJECT);
-// 
-// 		HRESULT hr = ole->GetObject(i, &reobj, REO_GETOBJ_POLEOBJ);
-// 		if (FAILED(hr))
-// 		{
-// 			break;
-// 		}
-// 
+	CComPtr<IRichEditOle>  ole;
+	SSendMessage(EM_GETOLEINTERFACE, 0, (LPARAM)&ole);
+
+	for (int i = _visibleOleChr.cpMin; i <= _visibleOleChr.cpMax; i++)
+	{
+		REOBJECT reobj = { 0 };
+		reobj.cbStruct = sizeof(REOBJECT);
+
+		HRESULT hr = ole->GetObject(i, &reobj, REO_GETOBJ_POLEOBJ);
+		if (FAILED(hr))
+		{
+			break;
+		}
+
 // 		SComPtr<RichEditImageOle> pImageOle = NULL;
 // 		if (reobj.poleobj->QueryInterface(IID_ImageOleCtrl, (VOID**)&pImageOle) == S_OK)
 // 		{
@@ -1064,12 +1308,12 @@ void SImRichEdit::DrawVisibleGifs(IRenderTarget* pRt, const CRect& validRgnRect)
 // 			}
 // 			reobj.poleobj->Release();
 // 		}
-// 	}
+	}
 }
 
 void SImRichEdit::DirectDrawOles(IRegionS* prgn)
 {
-	if ((GetState() & WndState_Invisible) ||  // ²»ÓÃÁ½¸ö&&,²»ÓÃÄÜIsVisible×öÅÐ¶Ï
+	if ((GetState() & WndState_Invisible) ||  // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½&&,ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½IsVisibleï¿½ï¿½ï¿½Ð¶ï¿½
 		!prgn ||
 		prgn->IsEmpty() ||
 		_isBackgroundDirty ||
@@ -1078,22 +1322,22 @@ void SImRichEdit::DirectDrawOles(IRegionS* prgn)
 		return;
 	}
 
-// 	CRect rcCli = GetClientRect();
-// 	prgn->CombineRect(rcCli, RGN_AND);
-// 	ClipChildren(this, prgn);
-// 
-// 	CRect rcRegion;
-// 	prgn->GetRgnBox(rcRegion);
-// 
-// 	CAutoRefPtr<IRenderTarget> pRt = GetContainer()->OnGetRenderTarget(rcRegion, 0);
-// 	pRt->PushClipRegion(prgn);
-// 	pRt->BitBlt(rcRegion, _pBackgroundRt, rcRegion.left, rcRegion.top);
-// 
-// 	DrawVisibleContents(pRt);
-// 	DrawVisibleGifs(pRt, rcRegion);
-// 
-// 	GetContainer()->OnReleaseRenderTarget(pRt, rcRegion, 0);
-// 	pRt->PopClip();
+	CRect rcCli = GetClientRect();
+	prgn->CombineRect(rcCli, RGN_AND);
+	ClipChildren(this, prgn);
+
+	CRect rcRegion;
+	prgn->GetRgnBox(rcRegion);
+
+	CAutoRefPtr<IRenderTarget> pRt = GetRenderTarget(&rcRegion, GRT_PAINTBKGND, 0);
+	pRt->PushClipRegion(prgn);
+	pRt->BitBlt(rcRegion, _pBackgroundRt, rcRegion.left, rcRegion.top);
+
+	DrawVisibleContents(pRt);
+	DrawVisibleGifs(pRt, rcRegion);
+
+	ReleaseRenderTarget(pRt);
+	pRt->PopClip();
 }
 
 void SImRichEdit::DrawVisibleContents(IRenderTarget* pRt)
@@ -1113,7 +1357,7 @@ void SImRichEdit::DrawVisibleContents(IRenderTarget* pRt)
 void SImRichEdit::UpdateVisibleCharRanges()
 {
 	//
-	// ¸üÐÂ¿É¼û×Ö·û·¶Î§
+	// ï¿½ï¿½ï¿½Â¿É¼ï¿½ï¿½Ö·ï¿½ï¿½ï¿½Î§
 	//
 	CRect clientRect = GetClientRect();
 	int nFirstVisibleLine = GetFirstVisibleLine();
@@ -1122,17 +1366,17 @@ void SImRichEdit::UpdateVisibleCharRanges()
 	_visibleChr.cpMax = CharFromPos(clientRect.BottomRight());
 
 	//
-	// ¸üÐÂ¿É¼ûole·¶Î§
+	// ï¿½ï¿½ï¿½Â¿É¼ï¿½oleï¿½ï¿½Î§
 	//
 
-// 	CComPtr<IRichEditOle>  ole;
-// 	SSendMessage(EM_GETOLEINTERFACE, 0, (LPARAM)&ole);
-// 
-// 	int oleCount = ole->GetObjectCount();
-// 	_visibleOleChr.cpMin = FindFirstOleInrange(ole, 0, oleCount, _visibleChr.cpMin, _visibleChr.cpMax);
-// 	_visibleOleChr.cpMax = (_visibleOleChr.cpMin == -1)
-// 		? -1
-// 		: FindLastOleInrange(ole, _visibleOleChr.cpMin, oleCount, _visibleChr.cpMin, _visibleChr.cpMax);
+	CComPtr<IRichEditOle>  ole;
+	SSendMessage(EM_GETOLEINTERFACE, 0, (LPARAM)&ole);
+
+	int oleCount = ole->GetObjectCount();
+	_visibleOleChr.cpMin = FindFirstOleInrange(ole, 0, oleCount, _visibleChr.cpMin, _visibleChr.cpMax);
+	_visibleOleChr.cpMax = (_visibleOleChr.cpMin == -1)
+		? -1
+		: FindLastOleInrange(ole, _visibleOleChr.cpMin, oleCount, _visibleChr.cpMin, _visibleChr.cpMax);
 }
 
 BOOL SImRichEdit::RecalcScrollbarPos(BOOL bVertical, UINT uCode, int nPos)
@@ -1211,8 +1455,8 @@ HRESULT SImRichEdit::DefAttributeProc(const SStringW& strAttribName, const SStri
 		strAttribName.CompareNoCase(L"enableDragdrop") == 0)
 	{
 		/*
-		 * richedtiµÄÍÏ×§Ð§¹û²»ÓÉÊÇ·ñreadonly¾ö¶¨
-		 * ÕâÑùµÄ»°ÐèÒªÔÚiRichEditOleCallbackÀï×öÊÖ½Å£¬ÅÐ¶ÏÈç¹ûricheditÊÇreadonly£¬¾Í²»ÄÜ¼ÌÐøÕ³Ìù
+		 * richedtiï¿½ï¿½ï¿½ï¿½×§Ð§ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç·ï¿½readonlyï¿½ï¿½ï¿½ï¿½
+		 * ï¿½ï¿½ï¿½ï¿½ï¿½Ä»ï¿½ï¿½ï¿½Òªï¿½ï¿½iRichEditOleCallbackï¿½ï¿½ï¿½ï¿½ï¿½Ö½Å£ï¿½ï¿½Ð¶ï¿½ï¿½ï¿½ï¿½richeditï¿½ï¿½readonlyï¿½ï¿½ï¿½Í²ï¿½ï¿½Ü¼ï¿½ï¿½ï¿½Õ³ï¿½ï¿½
 		 */
 		if (!bLoading)
 			EnableDragDrop(m_fEnableDragDrop);
@@ -1231,7 +1475,7 @@ void SImRichEdit::OnNextFrame()
 		return;
 	}
 
-	if (nInterval > 60 && !_pDelayDrawRgn->IsEmpty()) // 60 ²ÅË¢ÐÂÒ»´Î
+	if (nInterval > 60 && !_pDelayDrawRgn->IsEmpty()) // 60 ï¿½ï¿½Ë¢ï¿½ï¿½Ò»ï¿½ï¿½
 	{
 		_lastDrawTicks = nTicksNow;
 		DirectDrawOles(_pDelayDrawRgn);
@@ -1247,23 +1491,23 @@ LRESULT SImRichEdit::OnCreate(LPVOID)
 	EnableDragDrop(m_fEnableDragDrop);
 	_readOnlyBeforeDrag = GetReadOnly();
 
-// 	GUID guid = __uuidof(ITextDocument);
-// 	CComPtr<IRichEditOle> pOle = NULL;
-// 	SSendMessage(EM_GETOLEINTERFACE, 0, (LPARAM)&pOle);
-// 	HRESULT hr = pOle->QueryInterface(guid, (void**)&_pTextDoc);
-// 	SASSERT(SUCCEEDED(hr));
-// 
-// 	//
-// 	// set IME
-// 	//
-// 	//DWORD dw = SSendMessage(EM_GETEDITSTYLE);
-// 	//dw |= SES_USECTF;
-// 	//SSendMessage(EM_SETEDITSTYLE, dw, dw);
-// 
-// 	RichEditOleCallback* pcb = new RichEditOleCallback(this);
-// 	SSendMessage(EM_SETOLECALLBACK, 0, (LPARAM)pcb);
-// 	pcb->Release();
-// 	GetContainer()->RegisterTimelineHandler(this);
+	GUID guid = __uuidof(ITextDocument);
+	CComPtr<IRichEditOle> pOle = NULL;
+	SSendMessage(EM_GETOLEINTERFACE, 0, (LPARAM)&pOle);
+	HRESULT hr = pOle->QueryInterface(guid, (void**)&_pTextDoc);
+	SASSERT(SUCCEEDED(hr));
+
+	//
+	// set IME
+	//
+	//DWORD dw = SSendMessage(EM_GETEDITSTYLE);
+	//dw |= SES_USECTF;
+	//SSendMessage(EM_SETEDITSTYLE, dw, dw);
+
+	RichEditOleCallback* pcb = new RichEditOleCallback(this);
+	SSendMessage(EM_SETOLECALLBACK, 0, (LPARAM)pcb);
+	pcb->Release();
+	GetContainer()->RegisterTimelineHandler(this);
 
 	return 0;
 }
@@ -1284,10 +1528,10 @@ LRESULT SImRichEdit::OnNcCalcSize(BOOL bCalcValidRects, LPARAM lParam)
 
 	//
 	// copy from SPanel
-	// ÓÉÓÚÏë°Ñ TXTBIT_EXTENTCHANGE µÄÍ¨Öª·Åµ½OnSizeÔÙ·¢¸ørichedit£¬ËùÒÔÕâÀïÕÕ³­SRichEditµÄ´¦Àí
-	// ÔÚ·¢ËÍTXTBIT_EXTENTCHANGEÏûÏ¢¸øricheditÊ±£¬¿ÉÄÜ»áµ¼ÖÂ¸Ãº¯ÊýÖØÈë¡£
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ TXTBIT_EXTENTCHANGE ï¿½ï¿½Í¨Öªï¿½Åµï¿½OnSizeï¿½Ù·ï¿½ï¿½ï¿½richeditï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Õ³ï¿½SRichEditï¿½Ä´ï¿½ï¿½ï¿½
+	// ï¿½Ú·ï¿½ï¿½ï¿½TXTBIT_EXTENTCHANGEï¿½ï¿½Ï¢ï¿½ï¿½richeditÊ±ï¿½ï¿½ï¿½ï¿½ï¿½Ü»áµ¼ï¿½Â¸Ãºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ë¡£
 	// TXTBIT_EXTENTCHANGE -> SPanel::ShowScrollBar -> OnNcCalcSize
-	// Îª¼ò»¯Âß¼­£¬ÕâÀï°ÑTXTBIT_EXTENTCHANGEÏûÏ¢·Åµ½OnSizeÈ¥´¦Àí
+	// Îªï¿½ï¿½ï¿½ß¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½TXTBIT_EXTENTCHANGEï¿½ï¿½Ï¢ï¿½Åµï¿½OnSizeÈ¥ï¿½ï¿½ï¿½ï¿½
 	//
 	SPanel::OnNcCalcSize(bCalcValidRects, lParam);
 	CRect rcInsetPixel = m_rcInset;
@@ -1321,14 +1565,14 @@ void SImRichEdit::OnSize(UINT nType, CSize size)
 	int scrollPos = GetScrollPos(TRUE);
 
 	UpdateBkgndRenderTarget();
-	//m_pTxtHost->GetTextService()->OnTxPropertyBitsChange(TXTBIT_EXTENTCHANGE, TXTBIT_EXTENTCHANGE);
+	m_pTxtHost->GetTextService()->OnTxPropertyBitsChange(TXTBIT_EXTENTCHANGE, TXTBIT_EXTENTCHANGE);
 	UpdateContentPosition(0);
 	ForceUpdateLayout();
 
 	/*
-	 * ÓÉÓÚÉèÖÃÁËautoVScroll£¬¹ö¶¯Ìõ»á¾­³£ÂÒ¶¯£¬ËùÒÔÐèÒª¶¯Ì¬ÉèÖÃÒ»°Ñ¡£
-	 * - Èç¹û¹ö¶¯Ìõ´¦ÓÚ´°¿Úµ×²¿£¬²»¹Ü´°¿Ú³ß´çÔõÑù¸Ä±ä£¬¶¼ÐèÒª±£Ö¤¹ö¶¯ÌõÊ¼ÖÕÌù×Å´°¿Úµ×²¿
-	 * - Èç¹û¹ö¶¯Ìõ²»ÔÚµ×²¿£¬ÐèÒª±£Ö¤¹ö¶¯Ìõ±£³ÖÔÚµ±Ç°Î»ÖÃ¡£
+	 * ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½autoVScrollï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½á¾­ï¿½ï¿½ï¿½Ò¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½Ì¬ï¿½ï¿½ï¿½ï¿½Ò»ï¿½Ñ¡ï¿½
+	 * - ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú´ï¿½ï¿½Úµ×²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ü´ï¿½ï¿½Ú³ß´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä±ä£¬ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½Ö¤ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½Å´ï¿½ï¿½Úµ×²ï¿½
+	 * - ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Úµ×²ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½Ö¤ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Úµï¿½Ç°Î»ï¿½Ã¡ï¿½
 	 */
 	if (scrollAtBottom)
 		OnScroll(TRUE, SB_BOTTOM, 0);
@@ -1356,23 +1600,23 @@ void SImRichEdit::OnPaint(IRenderTarget* pRT)
 		if (!IsRenderTargetEmpty(_pBackgroundRt))
 			_isBackgroundDirty = FALSE;
 	}
-	// ÓÐÒÔÏÂ¼¸¸öÇé¿ö»áµ¼ÖÂcontent±äÔà£º
-	// * OnSizeÖ®ºó
-	// * OnScrollÖ®ºó
-	// * Í¼Æ¬Ö»ÏÔÊ¾Ò»°ëµÄÊ±ºò£¬µã»÷Í¼Æ¬£¬Í¼Æ¬»áÍêÕûµÄ³öÏÖricheditÉÏ
+	// ï¿½ï¿½ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½áµ¼ï¿½ï¿½contentï¿½ï¿½ï¿½à£º
+	// * OnSizeÖ®ï¿½ï¿½
+	// * OnScrollÖ®ï¿½ï¿½
+	// * Í¼Æ¬Ö»ï¿½ï¿½Ê¾Ò»ï¿½ï¿½ï¿½Ê±ï¿½ò£¬µï¿½ï¿½Í¼Æ¬ï¿½ï¿½Í¼Æ¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä³ï¿½ï¿½ï¿½richeditï¿½ï¿½
 	SetContentsDirty();
 
 	if (!_isDrawEnable)
 		return;
 
 	/*
-	 * Õâ²¿·ÖµÄ¸Ä¶¯Ö÷ÒªÊÇÒªÈ·±£²»ÈÃrichedit×Ô¶¯ÐÞ¸Ä¹ö¶¯ÌõÎ»ÖÃ£¬²Î¿¼ÁËwince richeditµÄÔ´Âë¡£
+	 * ï¿½â²¿ï¿½ÖµÄ¸Ä¶ï¿½ï¿½ï¿½Òªï¿½ï¿½ÒªÈ·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½richeditï¿½Ô¶ï¿½ï¿½Þ¸Ä¹ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½Ã£ï¿½ï¿½Î¿ï¿½ï¿½ï¿½wince richeditï¿½ï¿½Ô´ï¿½ë¡£
 	 *
-	 * ÓÉÓÚÉèÖÃÁËautoVScroll£¬ÔÚOnPaintÊ±»á×Ô¶¯¼ÆËã¹ö¶¯ÌõÎ»ÖÃ£¬ËùÒÔÐèÒªÏÈÊÖ¶¯°ÑES_AUTOVSCROLLÑùÊ½È¥µô
-	 * TxDraw()-> [richeditÄÚ²¿¶ÑÕ»] -> TxGetScrollBars()
-	 * È·±£richeditÔÚTxDrawÆÚ¼ä²»»áÉèÖÃ¹ö¶¯ÌõÎ»ÖÃ
+	 * ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½autoVScrollï¿½ï¿½ï¿½ï¿½OnPaintÊ±ï¿½ï¿½ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½Ã£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½Ö¶ï¿½ï¿½ï¿½ES_AUTOVSCROLLï¿½ï¿½Ê½È¥ï¿½ï¿½
+	 * TxDraw()-> [richeditï¿½Ú²ï¿½ï¿½ï¿½Õ»] -> TxGetScrollBars()
+	 * È·ï¿½ï¿½richeditï¿½ï¿½TxDrawï¿½Ú¼ä²»ï¿½ï¿½ï¿½ï¿½ï¿½Ã¹ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½
 	 *
-	 * ÓÉÓÚÄ³Ð©Ô­Òò£¬ÎÒÃÇ×Ô¼ºÎ¬»¤µÄÎ»ÖÃºÍricheditÎ¬»¤µÄ¹ö¶¯ÌõÎ»ÖÃ²¢²»Ò»ÖÂ£¬ÕâÀïÒÔÎÒÃÇ×Ô¼ºµÄÎª×¼¡£
+	 * ï¿½ï¿½ï¿½ï¿½Ä³Ð©Ô­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô¼ï¿½Î¬ï¿½ï¿½ï¿½ï¿½Î»ï¿½Ãºï¿½richeditÎ¬ï¿½ï¿½ï¿½Ä¹ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½Ã²ï¿½ï¿½ï¿½Ò»ï¿½Â£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½Îª×¼ï¿½ï¿½
 	 */
 	DWORD autoVScroll = m_dwStyle & ES_AUTOVSCROLL;
 	m_dwStyle &= ~ES_AUTOVSCROLL;
@@ -1397,6 +1641,12 @@ void SImRichEdit::OnLButtonDown(UINT nFlags, CPoint point)
 		{
 			SetFocus();
 		}
+	}
+	
+	// å¦‚æžœHitTestè¿”å›žNULLæˆ–å¯¹è±¡ä¸éœ€è¦å¤„ç†æ¶ˆæ¯ï¼Œè°ƒç”¨åŸºç±»å¤„ç†ä»¥èŽ·å–ç„¦ç‚¹å’Œæ­£ç¡®çš„æ¶ˆæ¯å¤„ç†
+	if (!bHandled)
+	{
+		__super::OnLButtonDown(nFlags, point);
 	}
 
 	SetMsgHandled(bHandled);
@@ -1464,16 +1714,6 @@ void SImRichEdit::OnMouseMove(UINT nFlags, CPoint point)
 	}
 	_pLastHoverObj = pRichObj;
 
-	//
-	// richedit¿Ó£ºricheditµÄWM_MOUSEMOVE¿ÉÄÜ»á´¥·¢ÍÏ×§²Ù×÷¡£
-	// Èç¹ûÔÚricheditµÄÍÏ×§×´Ì¬ÏÂµ÷ÓÃÁËSetReadOnly(TRUE),ÔÚÍÏ×§½áÊøÖ®ºó»á±ÀÀ£¡£
-	// Ô­ÒòÊÇricheditÔÚÊÕµ½SetReadOnly(TRUE)Ê±£¬»áÊÍ·ÅÕýÔÚÍÏ×§µÄ¶ÔÏó£¬¶øÔÚ
-	// ÍÏ×§²Ù×÷½áÊøÖ®ºórichedit»á¼ÌÐøÊ¹ÓÃ±»ÊÍ·ÅµÄ¶ÔÏó£¬´Ó¶øµ¼ÖÂ±ÀÀ£¡£
-	// 
-	// ½â¾ö°ì·¨ÊÇÏÈ¼Ù¶¨richeditÒÑ¾­½øÈëÁËÍÏ×§×´Ì¬£¬ÔÚInsertContentÊ±£¬Èç¹û·¢ÏÖÊÇÍÏ×§
-	// ×§×´Ì¬£¬ÔÚ²åÈëÄÚÈÝÖ®ºóÔÝÊ±²»ÉèÖÃSetReadOnly(TRUE),¶øÊÇµÈµ½OnMouseMove½áÊø£¬
-	// Ò²¾ÍÊÇÍÏ×§½áÊøÖ®ºóÔÙ»Ö¸´Ô­À´µÄÉèÖÃ¡£
-	//
 	_isDragging = TRUE;
 	_readOnlyBeforeDrag = GetReadOnly();
 
@@ -1559,20 +1799,20 @@ BOOL SImRichEdit::OnUpdateToolTip(CPoint pt, SwndToolTipInfo& tipInfo)
 //------------------------------------------------------------------------------
 //
 // event handlers
-// ÒòÎªÓÃ»§ÌåÑé·½ÃæµÄÔ­Òò£¬¿ªÆôÁËricheditµÄautoVScroll£¬µ«ÊÇ¿ªÆôÕâ¸ö¹¦ÄÜºó£¬richeditÔÚºÜ¶à
-// ÄÚ²¿µÄ´¦Àí¶¼»áÖØÐÂÉèÖÃ¹ö¶¯ÌõµÄÎ»ÖÃ£¬µ¼ÖÂ¹ö¶¯Ìõ¾­³£ÂÒ¶¯¡£±ÈÈçËõ·Å´°¿Ú³ß´ç£¬ÍÏ×§Ñ¡ÖÐÄÚÈÝµÈ¡£
+// ï¿½ï¿½Îªï¿½Ã»ï¿½ï¿½ï¿½ï¿½é·½ï¿½ï¿½ï¿½Ô­ï¿½ò£¬¿ï¿½ï¿½ï¿½ï¿½ï¿½richeditï¿½ï¿½autoVScrollï¿½ï¿½ï¿½ï¿½ï¿½Ç¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Üºï¿½richeditï¿½ÚºÜ¶ï¿½
+// ï¿½Ú²ï¿½ï¿½Ä´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½Ã£ï¿½ï¿½ï¿½ï¿½Â¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å´ï¿½ï¿½Ú³ß´ç£¬ï¿½ï¿½×§Ñ¡ï¿½ï¿½ï¿½ï¿½ï¿½ÝµÈ¡ï¿½
 // 
-// ÎªÁËÈÃricheditµÄ¹ö¶¯ÌõÄÜÊÜ¿ØÖÆ£¬ÔÚÒÔÏÂÏûÏ¢µÄ´¦Àíº¯Êý¶¼¶îÍâ×öÁË´¦Àí£º
+// Îªï¿½ï¿½ï¿½ï¿½richeditï¿½Ä¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ü¿ï¿½ï¿½Æ£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢ï¿½Ä´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë´ï¿½ï¿½ï¿½ï¿½ï¿½
 //  - OnSize
 //  - OnPaint
 //  - OnScroll
 //  - OnNcCalcSize
-// »ù±¾µÄË¼Ïë¾ÍÊÇÔÚÖªµÀrichedit»á¸Ä±ä¹ö¶¯ÌõµÄµØ·½ÏÈ¼ÇÂ¼Ô­À´¹ö¶¯ÌõµÄÎ»ÖÃ£¬µÈrichedit¸ÄÍê
-// ¹ö¶¯ÌõµÄÎ»ÖÃºóÔÙÖØÐÂÉèÖÃ»ØÈ¥¡£
+// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Öªï¿½ï¿½richeditï¿½ï¿½Ä±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÄµØ·ï¿½ï¿½È¼ï¿½Â¼Ô­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½Ã£ï¿½ï¿½ï¿½richeditï¿½ï¿½ï¿½ï¿½
+// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½Ãºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã»ï¿½È¥ï¿½ï¿½
 //
-// ÒÔÏÂÇé¿ö»áµ¼ÖÂricheditÎ»ÖÃ²»¶Ô
-//  - ÔÚ¹ö¶¯Ìõ¿ìµ½µ×²¿Ê±£¬µã»÷¹ö¶¯Ìõµ×²¿µÄ¿Õ°×£¬µ¼ÖÂÏòrichedit·¢ËÍÒ»¸öSB_PAGEDOWN
-//  - ÔÚ¹ö¶¯Ìõ¿ìµ½µ×²¿²¢ÇÒautoVScroll¿ªÆôÊ±£¬Ñ¡ÖÐÒ»²¿·ÖÄÚÈÝ£¬ÍùÏÂÀ­£¬µ¼ÖÂ×Ô¶¯ÍùÏÂ¹ö¶¯
+// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½áµ¼ï¿½ï¿½richeditÎ»ï¿½Ã²ï¿½ï¿½ï¿½
+//  - ï¿½Ú¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ìµ½ï¿½×²ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×²ï¿½ï¿½Ä¿Õ°×£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½richeditï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½SB_PAGEDOWN
+//  - ï¿½Ú¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ìµ½ï¿½×²ï¿½ï¿½ï¿½ï¿½ï¿½autoVScrollï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½Ñ¡ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½Â¹ï¿½ï¿½ï¿½
 // 
 //------------------------------------------------------------------------------
 
@@ -1587,8 +1827,8 @@ BOOL SImRichEdit::OnUpdateToolTip(CPoint pt, SwndToolTipInfo& tipInfo)
  * #define SB_BOTTOM           7
  * #define SB_ENDSCROLL        8
  *
- * ×¢Òâ£º
- *  - ²»ÐèÒª´¦ÀíÓÉÓÚSB_THUMBPOSITION¶ø·¢ÆðÖØ»æ£¬ÒòÎªÍ¨³£ÕâÊÇÓÉrichedit×Ô¼º·¢ÆðµÄ£¬Ëæºórichedit»áÍ¨¹ý»Øµ÷´¥·¢ÖØ»æ¡£
+ * ×¢ï¿½â£º
+ *  - ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½SB_THUMBPOSITIONï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø»æ£¬ï¿½ï¿½ÎªÍ¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½richeditï¿½Ô¼ï¿½ï¿½ï¿½ï¿½ï¿½Ä£ï¿½ï¿½ï¿½ï¿½richeditï¿½ï¿½Í¨ï¿½ï¿½ï¿½Øµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ø»æ¡£
  */
 BOOL SImRichEdit::OnScroll(BOOL bVertical, UINT uCode, int nPos)
 {
@@ -1607,21 +1847,21 @@ BOOL SImRichEdit::OnScroll(BOOL bVertical, UINT uCode, int nPos)
 
 		UINT code = (uCode == SB_THUMBTRACK) ? SB_THUMBPOSITION : uCode;
 
-// 		m_pTxtHost->GetTextService()->TxSendMessage(
-// 			bVertical ? WM_VSCROLL : WM_HSCROLL,
-// 			MAKEWPARAM(code, m_siVer.nPos),
-// 			0,
-// 			NULL);
+		m_pTxtHost->GetTextService()->TxSendMessage(
+			bVertical ? WM_VSCROLL : WM_HSCROLL,
+			MAKEWPARAM(code, m_siVer.nPos),
+			0,
+			NULL);
 	}
 	else
 	{
 		/*
-		 * ÓÃ»§ÍÏ×§ÄÚÈÝµ¼ÖÂ¹ö¶¯Ìõ·¢Éú¸Ä±äÊ±£¬¿ÉÄÜÓÉÓÚricheditÄÚ²¿¼ÆËãÓÐÎÊÌâ£¬µ¼ÖÂ¹ö¶¯ÌõÎ»ÖÃ³ö´í¡£
+		 * ï¿½Ã»ï¿½ï¿½ï¿½×§ï¿½ï¿½ï¿½Ýµï¿½ï¿½Â¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä±ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½richeditï¿½Ú²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½â£¬ï¿½ï¿½ï¿½Â¹ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½Ã³ï¿½ï¿½ï¿½ï¿½ï¿½
 		 *
-		 * ÓÉÓÚ m_fScrollPending ÎªTRUE£¬ËµÃ÷ÊÇÓÉricheditÖ÷¶¯µ÷ÓÃTxSetScrollÒýÆðµÄOnScroll£¬
-		 * Îª±ÜÃâËÀÑ­»·£¬²»ÄÜÔÚÕâÀïµ÷ÓÃTxSendMessageÉèÖÃ¹ö¶¯ÌõÎ»ÖÃ¡£
+		 * ï¿½ï¿½ï¿½ï¿½ m_fScrollPending ÎªTRUEï¿½ï¿½Ëµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½richeditï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½TxSetScrollï¿½ï¿½ï¿½ï¿½ï¿½OnScrollï¿½ï¿½
+		 * Îªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ñ­ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½TxSendMessageï¿½ï¿½ï¿½Ã¹ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½Ã¡ï¿½
 		 *
-		 * ËùÒÔÕâÀï±ê¼Ç¹ö¶¯ÌõÎ»ÖÃÒÑÊ§Ð§£¬ÒÔ×Ô¼ºÎ¬»¤µÄ¹ö¶¯ÌõÎ»ÖÃÎª×¼£¬ÔÚOnPaintÊ±ÖØÐÂÉèÖÃ¹ö¶¯ÌõÎ»ÖÃ
+		 * ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç¹ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½ï¿½ï¿½Ê§Ð§ï¿½ï¿½ï¿½ï¿½ï¿½Ô¼ï¿½Î¬ï¿½ï¿½ï¿½Ä¹ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½Îª×¼ï¿½ï¿½ï¿½ï¿½OnPaintÊ±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã¹ï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½
 		 */
 		LONG pos = 0;
 		//m_pTxtHost->GetTextService()->TxGetVScroll(NULL, NULL, &pos, NULL, NULL);
@@ -1657,25 +1897,29 @@ BOOL SImRichEdit::OnScroll(BOOL bVertical, UINT uCode, int nPos)
 LRESULT	SImRichEdit::OnImeStartComposition(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	_isCreatIme = true;
-	SetMsgHandled(FALSE);	//¼ÌÐøÈÃÏûÏ¢ÍùÏÂ´«
+	SetMsgHandled(FALSE);	//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢ï¿½ï¿½ï¿½Â´ï¿½
 	return S_OK;
 }
 
 LRESULT	SImRichEdit::OnImeComposition(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-	LRESULT result = S_OK;
-	__super::SwndProc(uMsg, wParam, lParam, &result);
 	_onPostImmComposition(uMsg, wParam, lParam);
-	return result;
+	SetMsgHandled(FALSE);
+	return 0;
 }
 
 BOOL SImRichEdit::_onPostImmComposition(UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	HIMC hIMC = NULL;
 
-	if (hIMC = ImmGetContext(GetContainer()->GetHostHwnd()))
+	// æ£€æŸ¥å®¹å™¨æ˜¯å¦å­˜åœ¨
+	ISwndContainer* pContainer = GetContainer();
+	if (!pContainer)
+		return FALSE;
+
+	if (hIMC = ImmGetContext(pContainer->GetHostHwnd()))
 	{
-		POINT pt;
+		POINT pt = { 0, 0 };
 		GetCaretPos(&pt);
 		COMPOSITIONFORM CompForm = { 0 };
 		ImmGetCompositionWindow(hIMC, &CompForm);
@@ -1688,16 +1932,25 @@ BOOL SImRichEdit::_onPostImmComposition(UINT msg, WPARAM wParam, LPARAM lParam)
 
 		_isCreatIme = false;
 
-		LONG yPixPerInch = GetDeviceCaps(GetDC(NULL), LOGPIXELSY);
+		HDC hDC = GetDC(NULL);
+		if (!hDC)
+		{
+			ImmReleaseContext(pContainer->GetHostHwnd(), hIMC);
+			return FALSE;
+		}
+
+		LONG yPixPerInch = GetDeviceCaps(hDC, LOGPIXELSY);
+		ReleaseDC(NULL, hDC);
+
 		CompForm.dwStyle = CFS_FORCE_POSITION;
 		CompForm.ptCurrentPos.x = x;
 		int offset = m_cfDef.yHeight * yPixPerInch / LY_PER_INCH;
-		CRect careRect;
+		CRect careRect = { 0, 0, 0, 0 };
 		GetCaretRect2(careRect);
 		CompForm.ptCurrentPos.y = pt.y + careRect.Height() - offset;
 		ImmSetCompositionWindow(hIMC, &CompForm);
 
-		CANDIDATEFORM candidateForm;
+		CANDIDATEFORM candidateForm = { 0 };
 		candidateForm.dwIndex = 0;
 		candidateForm.dwStyle = CFS_CANDIDATEPOS;
 		candidateForm.ptCurrentPos.x = x;
@@ -1705,7 +1958,7 @@ BOOL SImRichEdit::_onPostImmComposition(UINT msg, WPARAM wParam, LPARAM lParam)
 
 		ImmSetCandidateWindow(hIMC, &candidateForm);
 
-		ImmReleaseContext(GetContainer()->GetHostHwnd(), hIMC);
+		ImmReleaseContext(pContainer->GetHostHwnd(), hIMC);
 	}
 
 	return TRUE;

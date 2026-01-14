@@ -63,7 +63,7 @@ namespace SOUI
 	};
 
 	// OleWindow 
-	class OleWindow : public SwndContainerImpl
+	class OleWindow : public SwndContainerImpl, public SWindow
 	{
 	public:
 		OleWindow();
@@ -122,7 +122,6 @@ namespace SOUI
 	};
 
 	class RichEditOleBase;
-
 	class RichEditOleAdapter : public IOleObject
 		, public IViewObject2
 	{
@@ -191,7 +190,7 @@ namespace SOUI
 			DVTARGETDEVICE* ptd,
 			LPSIZEL lpsizel);
 
-	private:
+	public:
 		RichEditOleBase* _pHost; // 宿主 RichEditOleBase 实例（非 owning）
 		ULONG _comReferences;    // COM 接口的独立引用计数
 	};

@@ -1,9 +1,10 @@
 #pragma once
 #include <TOM.h>
 #include "IRichEditObjHost.h"
-#include "control/SRichEdit.h"
 #include "atl.mini/SComCli.h"
+#include <control/SRichEdit.h>
 
+#include "RichEditOleCallback.h"
 
 namespace SOUI
 {

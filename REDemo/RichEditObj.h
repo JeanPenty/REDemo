@@ -2,39 +2,45 @@
 //
 // RichEditObj.h : interface of the RichEditObj class
 //
-// SImRichEdit¶ÔÏóµÄ»ùÀàÍ·ÎÄ¼ş¶¨Òå£¬SImRichEdit¶ÔÏó°üÀ¨µ«²»½öÏŞÓÚÒÔÏÂ¶ÔÏó
+// SImRichEditï¿½ï¿½ï¿½ï¿½Ä»ï¿½ï¿½ï¿½Í·ï¿½Ä¼ï¿½ï¿½ï¿½ï¿½å£¬SImRichEditï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Â¶ï¿½ï¿½ï¿½
 // 
-// - ÆøÅİ, ·ÇOLE¶ÔÏó
-// - Í·Ïñ, ·ÇOLE¶ÔÏó
-// - ÎÄ±¾, ·ÇOLE¶ÔÏó
-// - Í¼Æ¬, OLE¶ÔÏó
-// - ÎÄ¼şÏûÏ¢, OLE¶ÔÏó
-// - ÒÔÉÏÊÇÀúÊ·ÏûÏ¢, OLE¶ÔÏó
-// - »ñÈ¡¸ü¶à, OLE¶ÔÏó
+// - ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½OLEï¿½ï¿½ï¿½ï¿½
+// - Í·ï¿½ï¿½, ï¿½ï¿½OLEï¿½ï¿½ï¿½ï¿½
+// - ï¿½Ä±ï¿½, ï¿½ï¿½OLEï¿½ï¿½ï¿½ï¿½
+// - Í¼Æ¬, OLEï¿½ï¿½ï¿½ï¿½
+// - ï¿½Ä¼ï¿½ï¿½ï¿½Ï¢, OLEï¿½ï¿½ï¿½ï¿½
+// - ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê·ï¿½ï¿½Ï¢, OLEï¿½ï¿½ï¿½ï¿½
+// - ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½, OLEï¿½ï¿½ï¿½ï¿½
 //
-// ¸ÃÎÄ¼şÖ»¶¨ÒåÁË·ÇOLE¶ÔÏóµÄRichEdit¶ÔÏó£¬OLE¶ÔÏóµÄ¶¨Òå¼û RichEditOleCtrls.h
+// ï¿½ï¿½ï¿½Ä¼ï¿½Ö»ï¿½ï¿½ï¿½ï¿½ï¿½Ë·ï¿½OLEï¿½ï¿½ï¿½ï¿½ï¿½RichEditï¿½ï¿½ï¿½ï¿½OLEï¿½ï¿½ï¿½ï¿½Ä¶ï¿½ï¿½ï¿½ï¿½ RichEditOleCtrls.h
 // 
 // ------------------------------------------------------------------------------
 
 #pragma once
 #include <vector>
 #include <TOM.h>
+#include "souistd.h"
 #include "helper/obj-ref-impl.hpp"
 #include "res.mgr/SFontPool.h"
 #include "interface/SRender-i.h"
 #include <atlcomcli.h>
 #include "IRichEditObjHost.h"
+#include "RichEditUintConverter.h"
+#include "RichEditObjFactory.h"
+
 namespace SOUI
 {
-#define REOBJ_FIRST   ((RichEditObj*)-1)    /*×Ó¶ÔÏó²åÈëÔÚ¿ªÍ·*/
-#define REOBJ_LAST    NULL                  /*×Ó¶ÔÏó²åÈëÔÚÄ©Î²*/
+#define REOBJ_FIRST   ((RichEditObj*)-1)   
+#define REOBJ_LAST    NULL                 
+// DECLARE_REOBJ - æ›¿æ¢ä¸ºç›´æ¥å®šä¹‰ DEF_SOBJECT å’Œ CreateObject
 #define DECLARE_REOBJ(obj,name) \
     DEF_SOBJECT(obj,name) \
-    static RichEditObj* CreateObject(){ return new obj; }
+    public: static RichEditObj* CreateObject() { return new obj(); } private:
 
+#pragma region RichEditObj
 	class RichEditObj : public SObject
 	{
-		DEF_SOBJECT(SObject, L"re_obj");
+		DEF_SOBJECT(RichEditObj, L"re_obj");
 	public:
 		enum AlignType
 		{
@@ -45,6 +51,8 @@ namespace SOUI
 
 		RichEditObj();
 		virtual ~RichEditObj();
+
+		virtual void OnFinalRelease() {}
 
 		LONG AddRef();
 		LONG Release();
@@ -73,7 +81,7 @@ namespace SOUI
 		SStringW GetData() { return _userData; }
 		int GetScale() const { return 100; }
 
-		// Ê÷²Ù×÷
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		UINT GetChildrenCount();
 		void InsertChild(RichEditObj* pNewChild, RichEditObj* pInsertAfter = REOBJ_LAST);
 		BOOL RemoveChild(RichEditObj* pChild);
@@ -104,34 +112,226 @@ namespace SOUI
 			ATTR_ENUM_END(_alignType)
 			SOUI_ATTRS_END()
 
-		RichEditObj* _pParent;       // ¸¸½Úµã 
-		RichEditObj* _pFirstChild;   // µÚÒ»×Ó½Úµã 
-		RichEditObj* _pLastChild;    // ×îºó½Úµã 
-		RichEditObj* _pNextSibling;  // Ç°Ò»ĞÖµÜ½Úµã 
-		RichEditObj* _pPrevSibling;  // ºóÒ»ĞÖµÜ½Úµã 
-		UINT _childrenCount; // ×Ó½ÚµãÊıÁ¿ 
-		LONG _references;    // ÒıÓÃ¼ÆÊıÆ÷
-		SStringW _objId;         // ¶ÔÏóID
-		SStringW _objName;       // ¶ÔÏóÃû³Æ 
-		SStringW _userData;      // ÓÃ»§Êı¾İ
-		SStringW _cursorName;    // ¹â±êÃû³Æ 
-		IRichEditObjHost* _pObjHost;      // ËŞÖ÷richedit 
-		CHARRANGE _contentChr;    // ÔÚricheditÀïÃæµÄ×Ö·ûÏÂ±ê,Õâ¸öĞÅÏ¢ºÜÖØÒª
-		CRect _marginRect;    // ¶ÔÏóµÄÍâ±ß¾à 
-		CRect _objRect;       // ÔÚricheditÀïÃæµÄÎ»ÖÃ 
-		BOOL _isDirty;       // Î»ÖÃĞÅÏ¢¸Ä±äÁË 
-		AlignType _alignType;     // ¶ÔÆë·½Ê½,ÌØÖ¸ºáÏòµÄ¶ÔÆë·½Ê½
+		RichEditObj* _pParent;       // ï¿½ï¿½ï¿½Úµï¿½ 
+		RichEditObj* _pFirstChild;   // ï¿½ï¿½Ò»ï¿½Ó½Úµï¿½ 
+		RichEditObj* _pLastChild;    // ï¿½ï¿½ï¿½Úµï¿½ 
+		RichEditObj* _pNextSibling;  // Ç°Ò»ï¿½ÖµÜ½Úµï¿½ 
+		RichEditObj* _pPrevSibling;  // ï¿½ï¿½Ò»ï¿½ÖµÜ½Úµï¿½ 
+		UINT _childrenCount; // ï¿½Ó½Úµï¿½ï¿½ï¿½ï¿½ï¿½ 
+		LONG _references;    // ï¿½ï¿½ï¿½Ã¼ï¿½ï¿½ï¿½ï¿½ï¿½
+		SStringW _objId;         // ï¿½ï¿½ï¿½ï¿½ID
+		SStringW _objName;       // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 
+		SStringW _userData;      // ï¿½Ã»ï¿½ï¿½ï¿½ï¿½ï¿½
+		SStringW _cursorName;    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 
+		IRichEditObjHost* _pObjHost;      // ï¿½ï¿½ï¿½ï¿½richedit 
+		CHARRANGE _contentChr;    // ï¿½ï¿½richeditï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½Â±ï¿½,ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢ï¿½ï¿½ï¿½ï¿½Òª
+		CRect _marginRect;    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ß¾ï¿½ 
+		CRect _objRect;       // ï¿½ï¿½richeditï¿½ï¿½ï¿½ï¿½ï¿½Î»ï¿½ï¿½ 
+		BOOL _isDirty;       // Î»ï¿½ï¿½ï¿½ï¿½Ï¢ï¿½Ä±ï¿½ï¿½ï¿½ 
+		AlignType _alignType;     // ï¿½ï¿½ï¿½ë·½Ê½,ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½Ä¶ï¿½ï¿½ë·½Ê½
 	};
+#pragma endregion
 
+#pragma region RichEditText
+	// RichEditï¿½Ä±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½å¡¢ï¿½ï¿½É«ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+	class RichEditText : public RichEditObj
+	{
+		DEF_SOBJECT(RichEditText, L"text")
+	public:
+		RichEditText();
+		~RichEditText() {}
+		
+		static RichEditObj* CreateObject() { return new RichEditText(); }
 
+		static SStringW MakeFormatedText(const SStringW& text,
+			int fontSize = 10,
+			const SStringW& font_face = L"å¾®è½¯é›…é»‘");
+
+		virtual BOOL InitFromXml(IXmlNode* pNode);
+		virtual void DrawObject(IRenderTarget*);
+		virtual void UpdatePosition();
+		virtual CRect GetRect();
+		virtual BOOL PointInObject(POINT pt);
+		virtual BOOL GetHitTestable();
+		virtual BOOL NeedToProcessMessage();
+		virtual LRESULT ProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
+		virtual BOOL InsertIntoHost(IRichEditObjHost* pHost);
+		int GetLineCount() { return _lineCount; }
+		SStringW GetType() { return GetClassName(); }
+		SStringW GetText() { return _text; }
+		SStringW GetLinkData() { return _linkData; }
+		SStringW GetTextType() { return _textType; }
+		void SetText(LPCWSTR pszText);
+		void SetLink(BOOL isLink);
+		void SetTextStyle(BOOL underline, BOOL bold, BOOL italic, COLORREF color);
+		void SetTextOffset(LONG loffset);
+
+	protected:
+		void FixText();
+		SOUI_ATTRS_BEGIN()
+			ATTR_STRINGW(L"font-face", _font, FALSE)
+			ATTR_COLOR(L"color", _textColor, FALSE)
+			ATTR_INT(L"underline", _isUnderline, FALSE)
+			ATTR_INT(L"bold", _isBold, FALSE)
+			ATTR_INT(L"italic", _isItalic, FALSE)
+			ATTR_INT(L"font-size", _fontSize, FALSE)
+			ATTR_INT(L"link", _isLink, FALSE)
+			ATTR_STRINGW(L"link-data", _linkData, FALSE)
+			ATTR_STRINGW(L"text-type", _textType, FALSE)
+			ATTR_STRINGW(L"font_offset", _fontOffset, FALSE)
+			SOUI_ATTRS_END()
+
+	private:
+		typedef std::vector<CRect> RectVec;
+		RectVec     _objRects;
+		DWORD       _status;
+		COLORREF    _textColor;
+		SStringW    _font;
+		SStringW    _text;
+		SStringW    _linkData;
+		SStringW    _textType;
+		int         _lineCount;
+		BOOL        _isUnderline;
+		BOOL        _isBold;
+		BOOL        _isItalic;
+		BOOL        _isLink;
+		int         _fontSize;
+		SStringW	_fontOffset;
+	};
+#pragma endregion
+
+#pragma region RichEditBkElement
+	// ï¿½ï¿½ï¿½ï¿½Ôªï¿½ï¿½
+	class RichEditBkElement : public RichEditObj
+	{
+		DEF_SOBJECT(RichEditBkElement, L"bkele")
+	public:
+		RichEditBkElement();
+		~RichEditBkElement();
+		
+		static RichEditObj* CreateObject() { return new RichEditBkElement(); }
+
+		void SetVisible(BOOL visible) { _bVisible = visible; }
+		void SetInteractive(BOOL b) { _isInteractive = b; }
+		SStringW GetType() { return GetClassName(); }
+		BOOL GetHitTestable() { return _bVisible && _hittestable; }
+		BOOL NeedToProcessMessage() { return _bVisible && _isInteractive; }
+		void CalcPosition(POS_INFO* pItemsPos, int nPosCount);
+		CRect GetRect();
+		void SetText(const SStringW& text);
+		void SetSkin(ISkinObj* pSkin, BOOL bAutoFree = TRUE);
+		void SetTextColor(COLORREF cr) { _textColor = cr; }
+
+	protected:
+		LRESULT ProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
+		void BeforePaint(IRenderTarget* pRT, SPainter& painter);
+		void AfterPaint(IRenderTarget* pRT, SPainter& painter);
+		void DrawObject(IRenderTarget*);
+		int PositionItem2Value(const POS_INFO& pos, int nMin, int nMax, BOOL bX);
+		BOOL ParsePosition34(POS_INFO* pPosItem, const SStringW& strPos3, const SStringW& strPos4);
+		BOOL ParsePosition12(POS_INFO* pPosItem, const SStringW& strPos1, const SStringW& strPos2);
+		BOOL StrPos2ItemPos(const SStringW& strPos, POS_INFO& pos);
+		HRESULT OnAttrSkin(const SStringW& strValue, BOOL bLoading);
+		HRESULT OnAttrPos(const SStringW& strValue, BOOL bLoading);
+		HRESULT OnAttrPosLeft(const SStringW& strValue, BOOL bLoading);
+		HRESULT OnAttrPosCenter(const SStringW& strValue, BOOL bLoading);
+		HRESULT OnAttrPosRight(const SStringW& strValue, BOOL bLoading);
+		HRESULT OnInternalAttrPos(POS_INFO* pPosItem, int& nPosCount, const SStringW& strValue, BOOL bLoading);
+
+		SOUI_ATTRS_BEGIN()
+			ATTR_INT(L"visible", _bVisible, FALSE)
+			ATTR_INT(L"interactive", _isInteractive, FALSE)
+			ATTR_INT(L"hittestable", _hittestable, FALSE)
+			ATTR_CUSTOM(L"pos", OnAttrPos)     // ï¿½ï¿½ï¿½ï¿½3ï¿½ï¿½posï¿½ï¿½Ò»ï¿½ï¿½
+			ATTR_CUSTOM(L"center-pos", OnAttrPosCenter)
+			ATTR_CUSTOM(L"left-pos", OnAttrPosLeft)
+			ATTR_CUSTOM(L"right-pos", OnAttrPosRight)
+			ATTR_CUSTOM(L"skin", OnAttrSkin)   // ï¿½ï¿½ï¿½ï¿½3ï¿½ï¿½skinï¿½ï¿½Ò»ï¿½ï¿½
+			ATTR_SKIN(L"left-skin", _pLeftSkin, FALSE)
+			ATTR_SKIN(L"center-skin", _pCenterSkin, FALSE)
+			ATTR_SKIN(L"right-skin", _pRightSkin, FALSE)
+			ATTR_STRINGW(L"font", _font, FALSE)
+			ATTR_COLOR(L"text-color", _textColor, FALSE)
+			ATTR_STRINGW(L"text", _text, FALSE)
+			ATTR_HEX(L"text-format", _textFormat, FALSE)
+			SOUI_ATTRS_END()
+
+	protected:
+		int _textFormat;
+		SStringW _font;
+		SStringW _text;
+		COLORREF _textColor;
+		BOOL _bVisible;          // ï¿½Ç·ï¿½ï¿½ï¿½Ê¾
+		DWORD _status;            // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ¶ï¿½ï¿½Ç·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+		BOOL _isInteractive;     // ï¿½Ç·ï¿½ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½WM_MOUSEMOVE
+		BOOL _hittestable;       // ï¿½Ü·ï¿½hittest
+
+		int _defPosCount;       // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
+		POS_INFO _defPosItems[4];    // ï¿½ï¿½posï¿½ï¿½ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½Öµ, _defPosCount >0 Ê±ï¿½ï¿½Ğ§*/
+		int _centerPosCount;    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ¶ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
+		POS_INFO _centerPosItems[4]; // ï¿½ï¿½posï¿½ï¿½ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½Öµ, _centerPosCount >0 Ê±ï¿½ï¿½Ğ§*/
+		int _rightPosCount;     // ï¿½ï¿½ï¿½ï¿½ï¿½Ò¶ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
+		POS_INFO _rightPosItems[4];  // ï¿½ï¿½posï¿½ï¿½ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½Öµ, _rightPosCount >0 Ê±ï¿½ï¿½Ğ§*/
+
+		ISkinObj* _pLeftSkin;         // Ä¬ï¿½ï¿½Í¼Æ¬ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½skin
+		ISkinObj* _pCenterSkin;       // ï¿½ï¿½ï¿½Ğ¶ï¿½ï¿½ï¿½ï¿½skin
+		ISkinObj* _pRightSkin;        // ï¿½Ò¶ï¿½ï¿½ï¿½ï¿½skin
+
+		SStringW _data;              // ï¿½Ã»ï¿½ï¿½ï¿½ï¿½ï¿½
+	};
+#pragma endregion
+
+#pragma region RichEditPara
+	class RichEditPara : public RichEditObj
+	{
+		DEF_SOBJECT(RichEditObj, L"para")
+	public:
+		RichEditPara();
+		~RichEditPara() {}
+		
+		static RichEditObj* CreateObject() { return new RichEditPara(); }
+
+		SStringW GetType() { return GetClassName(); }
+		BOOL GetHitTestable() { return FALSE; }
+		CRect GetRect();
+		void UpdatePosition();
+		BOOL InsertIntoHost(IRichEditObjHost* pHost);
+		void SetAlign(AlignType align);
+		BOOL IsWrapped();
+		void OffsetCharRange(int nOffset, BOOL bUpdate = FALSE);
+		void SetCharRange(const CHARRANGE& chr);
+	protected:
+		BOOL GetAutoWrapped();
+		BOOL CalculateRect();
+		BOOL GetLineRect(int nLineNo, CRect& rcLine);
+
+		SOUI_ATTRS_BEGIN()
+			ATTR_INT(L"break", _breakAtTheEnd, FALSE)
+			ATTR_INT(L"simulate-align", _simulateAlign, FALSE)
+			ATTR_INT(L"disable-layout", _disableLayout, FALSE)
+			SOUI_ATTRS_END()
+
+		BOOL _autoWrapped; 
+		BOOL _needUpdateLayout;
+		BOOL _simulateAlign;
+		int _breakAtTheEnd; 
+		int _lineCount; 
+		BOOL _initialized;
+		BOOL _disableLayout;
+	};
+#pragma endregion
+
+#pragma region RichEditContent
 	class RichEditContent : public RichEditObj
 	{
-#define THRESHOLD_FOR_AUTOLAYOUT 2400 // ×Ô¶¯²¼¾ÖµÄ·§Öµ
+#define THRESHOLD_FOR_AUTOLAYOUT 2400 
 		DEF_SOBJECT(RichEditObj, L"RichEditContent")
 
 	public:
 		RichEditContent() :_autoLayout(FALSE) {}
 		~RichEditContent() {}
+		
+		static RichEditObj* CreateObject() { return new RichEditContent(); }
 
 		virtual void UpdatePosition();
 		virtual BOOL GetHitTestable() { return FALSE; }
@@ -147,13 +347,13 @@ namespace SOUI
 		BOOL OnTimestampAttr(const SStringW& attr, BOOL bLoading);
 		SOUI_ATTRS_BEGIN()
 			ATTR_STRINGW(L"type", _contentType, FALSE)
-			ATTR_INT(L"auto-layout", _autoLayout, TRUE) /**< ÊÇ·ñ×Ô¶¯²¼¾Ö,¸ÃÉèÖÃ»á¸²¸ÇalignÊôĞÔ*/
-			ATTR_CUSTOM(L"timestamp", OnTimestampAttr)	//¸ÃÌõÏûÏ¢µÄÊ±¼ä´Á
-			ATTR_STRINGW(L"talk_type", _contentTalkType, FALSE)	//ÁÄÌìÀàĞÍ
-			ATTR_STRINGW(L"origin", _contentOrigin, FALSE)		//ÏûÏ¢id
+			ATTR_INT(L"auto-layout", _autoLayout, TRUE) /**< ï¿½Ç·ï¿½ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½ï¿½,ï¿½ï¿½ï¿½ï¿½ï¿½Ã»á¸²ï¿½ï¿½alignï¿½ï¿½ï¿½ï¿½*/
+			ATTR_CUSTOM(L"timestamp", OnTimestampAttr)	//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢ï¿½ï¿½Ê±ï¿½ï¿½ï¿½
+			ATTR_STRINGW(L"talk_type", _contentTalkType, FALSE)	//ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+			ATTR_STRINGW(L"origin", _contentOrigin, FALSE)		//ï¿½ï¿½Ï¢id
 			ATTR_STRINGW(L"msgtype", _contentMsgType, FALSE)
 			ATTR_STRINGW(L"content_id", _contentID, FALSE)
-		SOUI_ATTRS_END()
+			SOUI_ATTRS_END()
 
 	protected:
 		SStringW    _contentType;
@@ -164,6 +364,8 @@ namespace SOUI
 		SStringW	_contentMsgType;
 		SStringW	_contentID;
 	};
+#pragma endregion
+
 }
 
 
