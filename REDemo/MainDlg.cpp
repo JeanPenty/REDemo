@@ -92,8 +92,20 @@ BOOL CMainDlg::OnInitDialog(HWND hWnd, LPARAM lParam)
 		L"<bkele data=\"bubble\" left-skin=\"skin_left_bubble\" right-skin=\"skin_right_otherbubble\" left-pos=\"50,10,100,50\" right-pos=\"-10,10,100,50\" />"
 		L"</RichEditContent>",
 		sstrMessageID, sstrMessageID, L"", L"");
-	
  	pRecvEdit->InsertContent(sstrContent, RECONTENT_LAST);
+
+// 	SStringW sstrImgMsg;
+// 	sstrImgMsg.Format(L"<img subid=\"%s\" id=\"%s\" type=\"normal_img\" encoding=\"\" show-magnifier=\"1\" path=\"%s\" image_original_url=\"%s\"/>",
+// 		L"123454", L"123454", L"E:\\soui_demos\\REDemo\\REDemo\\uires\\image\\im\\right_bubble.png", L"");
+// 
+// 	SStringW sstrContentImg = SStringW().Format(
+// 		L"<RichEditContent msgtype=\"image\" id=\"%s\" content_id=\"%s\" talk_type=\"group\" origin=\"%s\" timestamp=\"%s\" type=\"ContentLeft\" align=\"left\" auto-layout=\"1\">"
+// 		L"<para id=\"msgbody\" margin=\"65,0,35,0\" break=\"1\" simulate-align=\"1\">"
+// 		L"%s"
+// 		L"</para>"
+// 		L"</RichEditContent>",
+// 		sstrMessageID.c_str(), sstrMessageID.c_str(), L"", L"", sstrImgMsg.c_str());
+// 	pRecvEdit->InsertContent(sstrContentImg, RECONTENT_LAST);
 
 	return 0;
 }

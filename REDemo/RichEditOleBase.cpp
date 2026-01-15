@@ -394,12 +394,6 @@ namespace SOUI
 
 
 
-
-
-
-
-
-
 	///////////////////////////////////
 	//RichEditOleBase
 
@@ -468,7 +462,7 @@ namespace SOUI
 	{
 		AdjustMessageParam(msg, wParam, lParam);
 		_oleView.HandleEvent(msg, wParam, lParam);
-		//bHandled = _oleView.IsMsgHandled();
+		bHandled = _oleView.IsMsgHandled();
 
 		//
 		// bHandled在此时总是为TRUE。
@@ -482,10 +476,10 @@ namespace SOUI
 			bHandled = TRUE; // 文件OLE不让RichEdit继续左击，否则会画出一个黑框
 		}
 		//无效果
-// 		if (!_canBeSelect && (msg == WM_SETFOCUS))
-// 		{
-// 			_oleView.SSendMessage(WM_KILLFOCUS);
-// 		}
+		if (!_canBeSelect && (msg == WM_SETFOCUS))
+		{
+			_oleView.SSendMessage(WM_KILLFOCUS);
+		}
 		return 0;
 	}
 
@@ -500,52 +494,55 @@ namespace SOUI
 
 	BOOL RichEditOleBase::OnUpdateToolTip(CPoint pt, SwndToolTipInfo& tipInfo)
 	{
-// 		SWindow* pChild = _oleView.GetWindow(GSW_LASTCHILD);
-// 		if (!pChild)
-// 		{
-// 			return FALSE;
-// 		}
-// 
-// 		SWND hHover = pChild->SwndFromPoint(pt, FALSE);
-// 		SWindow* pHover = SWindowMgr::GetWindow(hHover);
-// 
-// 		if (pHover)
-// 		{
-// 			if (pHover->UpdateToolTip(pt, tipInfo))
-// 			{
-// 				tipInfo.dwCookie = pHover->GetSwnd();
-// 				return TRUE;
-// 			}
-// 		}
+		SWindow* pChild = _oleView.GetWindow(GSW_LASTCHILD);
+		if (!pChild)
+		{
+			return FALSE;
+		}
+
+		SWND hHover = pChild->SwndFromPoint(pt, FALSE);
+		SWindow* pHover = SWindowMgr::GetWindow(hHover);
+
+		if (pHover)
+		{
+			if (pHover->UpdateToolTip(pt, tipInfo))
+			{
+				tipInfo.dwCookie = pHover->GetSwnd();
+				return TRUE;
+			}
+		}
 		return FALSE;
 	}
 
 	BOOL RichEditOleBase::InitOleWindow(IRichEditObjHost* pHost)
 	{
 		BOOL bRet = FALSE;
-// 		if (!_xmlLayout.IsEmpty())
-// 		{
-// 			pugi::xml_document xmlDoc;
-// 			SStringTList strLst;
-// 
-// 			if (2 == ParseResID(_xmlLayout, strLst))
-// 			{
-// 				LOADXML(xmlDoc, strLst[1], strLst[0]);
-// 			}
-// 			else
-// 			{
-// 				LOADXML(xmlDoc, strLst[0], RT_LAYOUT);
-// 			}
-// 
-// 			if (xmlDoc)
-// 			{
-// 				_oleView.SetHostRichEdit(pHost);
-// 				bRet = _oleView.InitFromXml(xmlDoc.child(L"root"));
-// 				SASSERT(bRet);
-// 				_oleView.Move(0, 0, _sizeNatural.cx, _sizeNatural.cy);
-// 				CalculateExtentSize(_sizeNatural);
-// 			}
-// 		}
+		if (!_xmlLayout.IsEmpty())
+		{
+			pugi::xml_document xmlDoc;
+			SStringTList strLst;
+
+			if (2 == ParseResID(_xmlLayout, strLst))
+			{
+				//load xml
+				//LOADXML(xmlDoc, strLst[1], strLst[0]);
+			}
+			else
+			{
+				//load xml
+				//LOADXML(xmlDoc, strLst[0], _T("LAYOUT"));
+			}
+
+			if (xmlDoc)
+			{
+				_oleView.SetHostRichEdit(pHost);
+				SXmlNode node(xmlDoc.child(L"root"));
+				bRet = _oleView.InitFromXml(&node);
+				SASSERT(bRet);
+				_oleView.Move2(0, 0, _sizeNatural.cx, _sizeNatural.cy);
+				CalculateExtentSize(_sizeNatural);
+			}
+		}
 
 		return bRet;
 	}
@@ -561,11 +558,11 @@ namespace SOUI
 
 	void RichEditOleBase::RequestDraw()
 	{
-// 		SWindow* pRoot = _oleView.GetWindow(GSW_FIRSTCHILD);
-// 		if (pRoot)
-// 		{
-// 			pRoot->Invalidate();
-// 		}
+		SWindow* pRoot = _oleView.GetWindow(GSW_FIRSTCHILD);
+		if (pRoot)
+		{
+			pRoot->Invalidate();
+		}
 	}
 
 	void RichEditOleBase::UpdateWindowLayout(SWindow* pWindow)
@@ -660,8 +657,6 @@ namespace SOUI
 			}
 		}
 	}
-
-
 
 	HRESULT RichEditOleBase::GetUserClassID(CLSID* pClsid)
 	{
@@ -787,8 +782,8 @@ namespace SOUI
 		pRT->ReleaseDC(hdc);
 
 		// 画richedit
-		//_oleView.RedrawRegion(pRT, rgn);
-		_oleView.UpdateRegion(rgn);
+		_oleView.RedrawRegion(pRT, rgn);
+		//_oleView.UpdateRegion(rgn);
 
 		hdc = pRT->GetDC(0);
 		// 贴到目标DC

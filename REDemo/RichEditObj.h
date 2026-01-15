@@ -40,7 +40,7 @@ namespace SOUI
 #pragma region RichEditObj
 	class RichEditObj : public SObject
 	{
-		DEF_SOBJECT(RichEditObj, L"re_obj");
+		DEF_SOBJECT(SObject, L"re_obj");
 	public:
 		enum AlignType
 		{
@@ -136,7 +136,7 @@ namespace SOUI
 	// RichEdit�ı����������塢��ɫ������
 	class RichEditText : public RichEditObj
 	{
-		DEF_SOBJECT(RichEditText, L"text")
+		DEF_SOBJECT(RichEditObj, L"text")
 	public:
 		RichEditText();
 		~RichEditText() {}
@@ -204,7 +204,7 @@ namespace SOUI
 	// ����Ԫ��
 	class RichEditBkElement : public RichEditObj
 	{
-		DEF_SOBJECT(RichEditBkElement, L"bkele")
+		DEF_SOBJECT(RichEditObj, L"bkele")
 	public:
 		RichEditBkElement();
 		~RichEditBkElement();
@@ -242,11 +242,11 @@ namespace SOUI
 			ATTR_INT(L"visible", _bVisible, FALSE)
 			ATTR_INT(L"interactive", _isInteractive, FALSE)
 			ATTR_INT(L"hittestable", _hittestable, FALSE)
-			ATTR_CUSTOM(L"pos", OnAttrPos)     
+			ATTR_CUSTOM(L"pos", OnAttrPos)     // 设置3个pos都一样
 			ATTR_CUSTOM(L"center-pos", OnAttrPosCenter)
 			ATTR_CUSTOM(L"left-pos", OnAttrPosLeft)
 			ATTR_CUSTOM(L"right-pos", OnAttrPosRight)
-			ATTR_CUSTOM(L"skin", OnAttrSkin)  
+			ATTR_CUSTOM(L"skin", OnAttrSkin)   // 设置3个skin都一样
 			ATTR_SKIN(L"left-skin", _pLeftSkin, FALSE)
 			ATTR_SKIN(L"center-skin", _pCenterSkin, FALSE)
 			ATTR_SKIN(L"right-skin", _pRightSkin, FALSE)
@@ -254,7 +254,6 @@ namespace SOUI
 			ATTR_COLOR(L"text-color", _textColor, FALSE)
 			ATTR_STRINGW(L"text", _text, FALSE)
 			ATTR_HEX(L"text-format", _textFormat, FALSE)
-			ATTR_STRINGW(L"data", _data, FALSE)
 			SOUI_ATTRS_END()
 
 	protected:

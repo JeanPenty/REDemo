@@ -10,7 +10,7 @@ namespace SOUI
 	extern "C" const GUID IID_ImageOleCtrl;
 	class RichEditImageOle : public RichEditOleBase
 	{
-		DEF_SOBJECT(RichEditImageOle, L"img")
+		DEF_SOBJECT(RichEditOleBase, L"img")
 	public:
 		static SStringW TagPath;
 		static SStringW MakeFormattedText(const SStringW& imageId,
@@ -90,7 +90,7 @@ namespace SOUI
 	extern "C" const GUID IID_AudioOleCtrl;
 	class RichEditAudioOle :public RichEditOleBase
 	{
-		DEF_SOBJECT(RichEditAudioOle, L"audio")
+		DEF_SOBJECT(RichEditOleBase, L"audio")
 	public:
 		//长短、状态使用不同皮肤
 		enum ReAudioState
@@ -148,7 +148,7 @@ namespace SOUI
 	extern "C" const GUID IID_VideoOleCtrl;
 	class RichEditVideoOle :public RichEditOleBase
 	{
-		DEF_SOBJECT(RichEditVideoOle, L"video")
+		DEF_SOBJECT(RichEditOleBase, L"video")
 	public:
 		enum ReVideoState
 		{
@@ -193,7 +193,7 @@ namespace SOUI
 	extern "C" const GUID IID_LinkOleCtrl;
 	class RichEditLinkOle : public RichEditOleBase
 	{
-		DEF_SOBJECT(RichEditLinkOle, L"link")
+		DEF_SOBJECT(RichEditOleBase, L"link")
 	public:
 		RichEditLinkOle();
 		~RichEditLinkOle();
@@ -223,7 +223,7 @@ namespace SOUI
 	extern "C" const GUID IID_LocationOleCtrl;
 	class RichEditLocationOle :public RichEditOleBase
 	{
-		DEF_SOBJECT(RichEditLocationOle, L"location")
+		DEF_SOBJECT(RichEditOleBase, L"location")
 	public:
 		RichEditLocationOle();
 		~RichEditLocationOle();
@@ -268,7 +268,7 @@ namespace SOUI
 	extern "C" const GUID IID_FileOleCtrl;
 	class RichEditFileOle : public RichEditOleBase
 	{
-		DEF_SOBJECT(RichEditFileOle, L"file")
+		DEF_SOBJECT(RichEditOleBase, L"file")
 	public:
 		enum LinkFlag
 		{
@@ -310,8 +310,8 @@ namespace SOUI
 		SStringW GetFileOLeId() { return GetId(); }
 
 	protected:
-		bool OnLinkClicked(SOUI::EventArgs* pEvt);
-		bool OnFileNameClicked(SOUI::EventArgs* pEvt);
+		bool OnLinkClicked(SOUI::IEvtArgs* pEvt);
+		bool OnFileNameClicked(SOUI::IEvtArgs* pEvt);
 
 		SOUI_ATTRS_BEGIN()
 			ATTR_STRINGW(L"file-path", _filePath, FALSE)
@@ -356,7 +356,7 @@ namespace SOUI
 	extern "C" const GUID IID_FetchMoreOleCtrl;
 	class RichEditFetchMoreOle : public RichEditOleBase
 	{
-		DEF_SOBJECT(RichEditFetchMoreOle, L"fetchmore")
+		DEF_SOBJECT(RichEditOleBase, L"fetchmore")
 	public:
 		enum FetchMoreState
 		{
@@ -392,7 +392,7 @@ namespace SOUI
 	extern "C" const GUID IID_SeparatorBarCtrl;
 	class RichEditSeparatorBar : public RichEditOleBase
 	{
-		DEF_SOBJECT(RichEditSeparatorBar, L"split")
+		DEF_SOBJECT(RichEditOleBase, L"split")
 	public:
 		RichEditSeparatorBar();
 
@@ -407,7 +407,7 @@ namespace SOUI
 	extern "C" const GUID IID_RemainderOleCtrl;
 	class RichEditReminderOle : public RichEditOleBase
 	{
-		DEF_SOBJECT(RichEditReminderOle, L"remainder")
+		DEF_SOBJECT(RichEditOleBase, L"remainder")
 	public:
 		static SStringW MakeFormattedText(const SStringW& text,
 			int textSize,
@@ -458,7 +458,7 @@ namespace SOUI
 #define OLE_MIN_WIDTH 45
 #define OLE_HEIGHT    65
 
-		DEF_SOBJECT(RichEditMetaFileOle, L"metafile")
+		DEF_SOBJECT(RichEditOleBase, L"metafile")
 	public:
 		RichEditMetaFileOle();
 		static RichEditObj* CreateObject() { return new RichEditMetaFileOle(); }

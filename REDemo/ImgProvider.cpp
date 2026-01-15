@@ -154,25 +154,25 @@ BOOL GetBitmapData(LPBYTE& pImageContent, DWORD& dwSize, HBITMAP hBMP)
 // ImageProvider
 BOOL ImageProvider::IsExist(LPCWSTR pszImageId)
 {
-// 	if (!pszImageId)
-// 	{
-// 		return FALSE;
-// 	}
-// 
-// 	SSkinPool* pBuiltinSkinPool = SSkinPoolMgr::getSingletonPtr()->GetBuiltinSkinPool();
-// 
-// 	//
-// 	// 如果这里不先挡一把，下面的GetSkin找不到skin时会断言错误
-// 	//
-// 	SkinKey key = { pszImageId,100 };
+	if (!pszImageId)
+	{
+		return FALSE;
+	}
+
+	SSkinPool* pBuiltinSkinPool = SSkinPoolMgr::getSingletonPtr()->GetBuiltinSkinPool();
+
+	//
+	// 如果这里不先挡一把，下面的GetSkin找不到skin时会断言错误
+	//
+	SkinKey key = { pszImageId,100 };
 // 	if (!pBuiltinSkinPool->HasKey(key))
 // 	{
 // 		return FALSE;
 // 	}
-// 
-// 	ISkinObj* pSkin = pBuiltinSkinPool->GetSkin(pszImageId, 100);
-// 
-// 	return (pSkin != NULL);
+
+	ISkinObj* pSkin = pBuiltinSkinPool->GetSkin(pszImageId, 100);
+
+	return (pSkin != NULL);
 
 	return TRUE;
 }
@@ -236,12 +236,11 @@ BOOL ImageProvider::Insert(LPCWSTR pszImageId, LPBYTE pData, size_t sizeLen, con
 	pSkin->SetImage(pImg);
 	pSkin->SetMargin(rcMargin);
 
-// 	SSkinPool* pBuiltinSkinPool = SSkinPoolMgr::getSingletonPtr()->GetBuiltinSkinPool();
-// 	SkinKey key = { pszImageId,100 };
-// 	pBuiltinSkinPool->AddKeyObject(key, pSkin);
+	SSkinPool* pBuiltinSkinPool = SSkinPoolMgr::getSingletonPtr()->GetBuiltinSkinPool();
+	SkinKey key = { pszImageId,100 };
+	pBuiltinSkinPool->AddSkin(pSkin);
 
 	pImg->Release();
-	return TRUE;
 }
 
 BOOL ImageProvider::Insert(LPCWSTR pszImageId, HBITMAP hImageHandle, const LPRECT lprcMargin/* = NULL*/)
@@ -266,10 +265,10 @@ BOOL ImageProvider::Insert(LPCWSTR pszImageId, HBITMAP hImageHandle, const LPREC
 
 BOOL ImageProvider::Insert(LPCWSTR pszImageId, ISkinObj* pSkin)
 {
-// 	SSkinPool* pBuiltinSkinPool = SSkinPoolMgr::getSingletonPtr()->GetBuiltinSkinPool();
-// 	SkinKey key = { pszImageId,100 };
-// 
-// 	return pBuiltinSkinPool->AddKeyObject(key, pSkin);
+ 	SSkinPool* pBuiltinSkinPool = SSkinPoolMgr::getSingletonPtr()->GetBuiltinSkinPool();
+ 	SkinKey key = { pszImageId,100 };
+ 
+ 	return pBuiltinSkinPool->AddSkin(pSkin);
 
 	return TRUE;
 }
@@ -281,18 +280,16 @@ ISkinObj* ImageProvider::GetImage(LPCWSTR pszImageId)
 		return NULL;
 	}
 
-// 	SSkinPool* pBuiltinSkinPool = SSkinPoolMgr::getSingletonPtr()->GetBuiltinSkinPool();
-// 	ISkinObj* pSkin = pBuiltinSkinPool->GetSkin(pszImageId, 100);
-// 
-// 	if (pSkin == NULL)
-// 	{
-// 		pSkin = SSkinPoolMgr::getSingletonPtr()->GetSkin(pszImageId, 100);
-// 	}
-// 
-// 	// NOT found
-// 	return pSkin;
+	SSkinPool* pBuiltinSkinPool = SSkinPoolMgr::getSingletonPtr()->GetBuiltinSkinPool();
+	ISkinObj* pSkin = pBuiltinSkinPool->GetSkin(pszImageId, 100);
 
-	return NULL;
+	if (pSkin == NULL)
+	{
+		pSkin = SSkinPoolMgr::getSingletonPtr()->GetSkin(pszImageId, 100);
+	}
+
+	// NOT found
+	return pSkin;
 }
 
 BOOL ImageProvider::Update(LPCWSTR pszImageId, LPCWSTR pszImagePath, const LPRECT lprcMargin/* = NULL*/)
@@ -338,12 +335,12 @@ void ImageProvider::Remove(LPCWSTR pszImageId)
 		return;
 	}
 
-// 	SSkinPool* pBuiltinSkinPool = SSkinPoolMgr::getSingletonPtr()->GetBuiltinSkinPool();
-// 	ISkinObj* pSkin = pBuiltinSkinPool->GetSkin(pszImageId, 100);
-// 
-// 	if ((pSkin != NULL) && (pSkin->IsClass(SAntialiasSkin::GetClassName())))
-// 	{
-// 		SkinKey key = { pszImageId,100 };
-// 		pBuiltinSkinPool->RemoveKeyObject(key);
-// 	}
+	SSkinPool* pBuiltinSkinPool = SSkinPoolMgr::getSingletonPtr()->GetBuiltinSkinPool();
+	ISkinObj* pSkin = pBuiltinSkinPool->GetSkin(pszImageId, 100);
+
+	if ((pSkin != NULL) && (pSkin->IsClass(SAntialiasSkin::GetClassName())))
+	{
+		SkinKey key = { pszImageId,100 };
+		pBuiltinSkinPool->RemoveSkin(pBuiltinSkinPool->GetSkin(key.strName, key.scale));
+	}
 }

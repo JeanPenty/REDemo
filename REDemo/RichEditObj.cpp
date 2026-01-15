@@ -1,9 +1,29 @@
+// ------------------------------------------------------------------------------
+//
+// RichEditObj.cpp : impl of the RichEditObj class
+//
+// 各RichEditObj对象的实现文件，主要包括2种对象
+//
+// 1. OLE对象。如图片、@人消息、查看更多、以上是历史消息
+//
+// 2. 非OLE对象。如果气泡、头像
+//
+// ------------------------------------------------------------------------------
+
 #include "stdafx.h"
 #include "RichEditObj.h"
 
+#include <atlcomcli.h>
+#include "helper\SplitString.h"
+#include "RichEditOleCtrls.h"
+#include "RichEditObjFactory.h"
+#include "RichEditObjEvents.h"
+#include "RichEditUintConverter.h"
+#include "ImgProvider.h"
+
 namespace SOUI
 {
-#define _tomClientCoord     256  // Ĭ�ϻ�ȡ��������Ļ���꣬ Use client coordinates instead of screen coordinates.
+#define _tomClientCoord     256  // 默认获取到的是屏幕坐标， Use client coordinates instead of screen coordinates.
 #define _tomAllowOffClient  512  // Allow points outside of the client area.
 
 	const int  LEFT = 0;
@@ -428,11 +448,17 @@ namespace SOUI
 			return;
 
 		_objRects.clear();
-		int lineStart = 0;
-		int lineEnd = 0;
-		_pObjHost->SendMessage(EM_EXLINEFROMCHAR, 0, _contentChr.cpMin, (LRESULT*)&lineStart);
-		_pObjHost->SendMessage(EM_EXLINEFROMCHAR, 0, _contentChr.cpMax, (LRESULT*)&lineEnd);
+// 		int lineStart = 0;
+// 		int lineEnd = 0;
+// 		_pObjHost->SendMessage(EM_EXLINEFROMCHAR, 0, _contentChr.cpMin, (LRESULT*)&lineStart);
+// 		_pObjHost->SendMessage(EM_EXLINEFROMCHAR, 0, _contentChr.cpMax, (LRESULT*)&lineEnd);
+		int lineStart = _pObjHost->SendMessage(EM_EXLINEFROMCHAR, 0, _contentChr.cpMin, 0);
+		int lineEnd = _pObjHost->SendMessage(EM_EXLINEFROMCHAR, 0, _contentChr.cpMax, 0);
 
+		//
+		// 拼出当前行的CHARRANGE
+		// 注意：不知道为什么要<_contentChr.cpMax-1而不是_contentChr.cpMax
+		// 
 		LONG chrIndex = _contentChr.cpMin;
 		for (int lineIndex = lineStart; lineIndex <= lineEnd; ++lineIndex)
 		{
@@ -448,7 +474,7 @@ namespace SOUI
 				chr.cpMax += 1;
 			}
 
-			// ���㵱ǰ�е�rect
+			// 计算当前行的rect
 			CRect rect;
 			SComPtr<ITextRange>  spRangeLine;
 			ITextDocument* pdoc = _pObjHost->GetTextDoc();
@@ -585,7 +611,7 @@ namespace SOUI
 		_isBold = bold;
 		_isItalic = italic;
 
-		// ����������ʽ
+		// 设置字体样式
 		CHARFORMATW cf = { 0 };
 		cf.cbSize = sizeof(CHARFORMATW);
 
@@ -631,7 +657,7 @@ namespace SOUI
 		_contentChr.cpMax += _pObjHost->GetCharCount() - nLength;
 		_pObjHost->SendMessage(EM_EXSETSEL, NULL, (LPARAM)&_contentChr);
 
-		// ����������ʽ
+		// 设置字体样式
 		CHARFORMATW cf = { 0 };
 		cf.cbSize = sizeof(CHARFORMATW);
 
@@ -694,7 +720,7 @@ namespace SOUI
 		//    ::SysFreeString(bstr);
 		//}
 
-		// �ѹ���Ƶ����
+		// 把光标移到最后
 		CHARRANGE chr = { _contentChr.cpMax, _contentChr.cpMax };
 		_pObjHost->SendMessage(EM_EXSETSEL, NULL, (LPARAM)&chr);
 
@@ -702,10 +728,10 @@ namespace SOUI
 	}
 
 	//
-	// �����ָ�ʽ����RichEditText�ĸ�ʽ
+	// 把文字格式化成RichEditText的格式
 	//
-	// @param text: ��Ҫ��ʽ�����ı�����
-	// @param fontSize: �����С����λ��pt
+	// @param text: 需要格式化的文本内容
+	// @param fontSize: 字体大小，单位是pt
 	//
 	SStringW RichEditText::MakeFormatedText(const SStringW& text,
 		int fontSize/*=10*/,
@@ -841,7 +867,7 @@ namespace SOUI
 
 		if (_isDirty)
 		{
-			// ����������ǰһ��/��һ���ֵܽڵ��ȸ���λ����Ϣ���
+			// 等所依赖的前一个/后一个兄弟节点先更新位置信息完毕
 			CalcPosition(pos, posCount);
 		}
 
@@ -935,7 +961,7 @@ namespace SOUI
 			return FALSE;
 		}
 
-		//����pos�����еĿո���ݡ�
+		//增加pos属性中的空格兼容。
 		for (size_t i = 0; i < strLst.GetCount(); i++)
 		{
 			strLst.GetAt(i).TrimBlank();
@@ -973,8 +999,8 @@ namespace SOUI
 				nRet = nMin + (int)pos.nPos.fSize;
 			break;
 
-		case PIT_PREV_NEAR: //��[�������ǰһ�ֵܴ��ڡ�����Xʱ���ο�ǰһ�ֵܴ��ڵ�right������Yʱ�ο�ǰһ�ֵܴ��ڵ�bottom
-		case PIT_PREV_FAR:  //��{�������ǰһ�ֵܴ��ڡ�����Xʱ���ο�ǰһ�ֵܴ��ڵ�left������Yʱ�ο�ǰһ�ֵܴ��ڵ�top
+		case PIT_PREV_NEAR: //“[”相对于前一兄弟窗口。用于X时，参考前一兄弟窗口的right，用于Y时参考前一兄弟窗口的bottom
+		case PIT_PREV_FAR:  //“{”相对于前一兄弟窗口。用于X时，参考前一兄弟窗口的left，用于Y时参考前一兄弟窗口的top
 		{
 			CRect rcRef;
 			RichEditObj* pRefObj = GetPrev();
@@ -1001,8 +1027,8 @@ namespace SOUI
 		}
 		break;
 
-		case PIT_NEXT_NEAR: //��]������ں�һ�ֵܴ��ڡ�����Xʱ���ο���һ�ֵܵ�left,����Yʱ�ο���һ�ֵܵ�top
-		case PIT_NEXT_FAR:  //��}������ں�һ�ֵܴ��ڡ�����Xʱ���ο���һ�ֵܵ�right,����Yʱ�ο���һ�ֵܵ�bottom
+		case PIT_NEXT_NEAR: //“]”相对于后一兄弟窗口。用于X时，参考后一兄弟的left,用于Y时参考后一兄弟的top
+		case PIT_NEXT_FAR:  //“}”相对于后一兄弟窗口。用于X时，参考后一兄弟的right,用于Y时参考后一兄弟的bottom
 		{
 			CRect rcRef;
 			RichEditObj* pRefObj = GetNext();
@@ -1287,13 +1313,12 @@ namespace SOUI
 		if (_breakAtTheEnd)
 		{
 			/*
-			 * ������в����char range�������SetIndentsʱҪ���ϡ�
-			 * ��Ҫ��Ϊ�˱�֤���������һ���ǿ���ʱ,����Ҳ����������
+			 * 这个换行不算进char range里，但是在SetIndents时要加上。
+			 * 主要是为了保证内容里最后一行是空行时,空行也能设置缩进
 			*/
-
 			pHost->SendMessage(EM_REPLACESEL, TRUE, (LPARAM)L"\r\n");
 		}
-		// ����������
+		// 计算总行数
 		RichEditObj* pChild = GetFirstChild();
 		for (; pChild; pChild = pChild->GetNext())
 		{
@@ -1308,12 +1333,15 @@ namespace SOUI
 
 	BOOL RichEditPara::IsWrapped()
 	{
-		int  nLineStart = 0;
-		int  nLineEnd = 0;
-		_pObjHost->SendMessage(EM_EXLINEFROMCHAR, 0, _contentChr.cpMin, (LRESULT*)&nLineStart);
-		_pObjHost->SendMessage(EM_EXLINEFROMCHAR, 0, _contentChr.cpMax, (LRESULT*)&nLineEnd);
+// 		int  nLineStart = 0;
+// 		int  nLineEnd = 0;
+// 		_pObjHost->SendMessage(EM_EXLINEFROMCHAR, 0, _contentChr.cpMin, (LRESULT*)&nLineStart);
+// 		_pObjHost->SendMessage(EM_EXLINEFROMCHAR, 0, _contentChr.cpMax, (LRESULT*)&nLineEnd);
 
-		// �����ʾ��������ԭʼ����ʱ������Ҫ��,��Ϊ�Զ�������
+		int  nLineStart = _pObjHost->SendMessage(EM_EXLINEFROMCHAR, 0, _contentChr.cpMin, 0);
+		int  nLineEnd = _pObjHost->SendMessage(EM_EXLINEFROMCHAR, 0, _contentChr.cpMax, 0);
+
+		// 如果显示的行数比原始插入时的行数要多,认为自动换行了
 		return (nLineEnd - nLineStart + 1) > _lineCount;
 	}
 
@@ -1329,9 +1357,7 @@ namespace SOUI
 		}
 	}
 
-	//
-	// ����ʹ�ã�������һ��Ҫȷ��chr����ȷ
-	// 
+	// 慎重使用，调用者一定要确保chr的正确
 	void RichEditPara::SetCharRange(const CHARRANGE& chr)
 	{
 		_contentChr = chr;
@@ -1351,7 +1377,7 @@ namespace SOUI
 	{
 		RichEditObj::UpdatePosition();
 
-		if (_disableLayout)// �������Ҫ����,ֱ�ӷ���
+		if (_disableLayout)// 如果不需要布局,直接返回
 			return;
 
 		CComPtr<ITextPara>   ppara;
@@ -1390,8 +1416,8 @@ namespace SOUI
 
 		_autoWrapped = FALSE;
 		//
-		// ������Ҫʹ��ģ�����,������ٶ�
-		// ��richedit�Լ��Ķ��뷽ʽ�����Ű�
+		// 尽量不要使用模拟计算,能提高速度
+		// 用richedit自己的对其方式进行排版
 		//
 		if (!_simulateAlign || _alignType == ALIGN_LEFT)
 		{
@@ -1406,13 +1432,13 @@ namespace SOUI
 			return;
 		}
 
-		/* ģ������Ҷ���
-		 * ע�⣺SetIndents��CalcParagraphRect�ܺ�ʱ,���Ծ�����ʹ��ģ����㿿��
+		/* 模拟计算右对齐
+		 * 注意：SetIndents和CalcParagraphRect很耗时,所以尽量不使用模拟计算靠右
 		 *
-		 * 1.�Ȱ���ߵ�������������
-		 * 2.����cp��������rect
-		 * 3.��richedit.width() - para.widht()����������,ģ���Ҷ���
-		 * 4.���ݼ��������/������������
+		 * 1.先按最靠边的左右缩进设置
+		 * 2.按照cp计算段落的rect
+		 * 3.用richedit.width() - para.widht()计算左缩进,模拟右对齐
+		 * 4.根据计算出的左/缩进重新设置
 		*/
 		// step 1
 		ppara->SetIndents(0, px2pt(nLeftIndents), px2pt(nRightIndents));

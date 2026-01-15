@@ -2,6 +2,10 @@
 #include "interface\SRender-i.h"
 #include <map>
 
+#include "SSkinPoolMgr.h"
+
+#include "SAntialiasSkin.h"
+
 class ImageProvider
 {
 public:

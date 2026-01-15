@@ -59,9 +59,7 @@ namespace SOUI
 
 	RichEditImageOle::~RichEditImageOle()
 	{
-		//
-		// ��ͼƬskin���ڴ���_oleView��������_oleView�ͷ�ʱ�������skin��release
-		// 
+		// 把图片skin的内存由_oleView管理，当_oleView释放时，会调用skin的release
 	}
 
 	HRESULT RichEditImageOle::QueryInterface(REFIID riid, void** ppvObject)
@@ -155,7 +153,7 @@ namespace SOUI
 
 	BOOL RichEditImageOle::SetImagePath(const SStringW& path, const SStringW& skinId)
 	{
-		// ͬ������ͼƬ
+		// 同步下载图片
 		SStringW newPath;
 		if (!DownLoadNetworkFile(path, newPath))
 		{
@@ -163,11 +161,10 @@ namespace SOUI
 			return FALSE;
 		}
 
-		// ������֤��ͬһ��ͼƬ����Ҫ�ظ�����
-		// ͷ�񡢱���һ��Ҫ��ͬһ��
-		// ͼƬ�Ŀ���������Ҳ����
-		// ���ǽ��յ�����ͬ����ͼƬ�Ͳ�����
-
+		// 尽量保证用同一张图片，不要重复加载
+		// 头像、表情一定要用同一张
+		// 图片的拷贝，发送也可以
+		// 但是接收到多张同样的图片就不行了
 		_path = newPath;
 		_skinId = skinId;
 
@@ -224,9 +221,7 @@ namespace SOUI
 		_oleView.SetOleWindowRect(CRect());
 		_oleView.Move2(0, 0, _sizeNatural.cx, _sizeNatural.cy);
 
-		//
-		// ˢ��UI
-		//
+		// 刷新UI
 		BOOL scrollToBottom = _pObjHost->IsScrollAtBottom();
 
 		if (_spAdviseSink)
@@ -282,8 +277,8 @@ namespace SOUI
 	}
 
 	//
-	// ͼƬoleֻ��ȡImgCache���ͼƬ�����Ի���Ե�_path������_path��������ճ������Ϣ�����ṩ��presenter����
-	// ��������ҪԤ�ȼ���ͼƬ��ImgCache�Ȼ�����SetImageSkin������
+	// 图片ole只读取ImgCache里的图片，所以会忽略掉_path参数，_path用来生产粘贴板信息或者提供给presenter所用
+	// 调用者需要预先加载图片进ImgCache里，然后调用SetImageSkin方法。
 	//
 	BOOL RichEditImageOle::InitOleWindow(IRichEditObjHost* pHost)
 	{
@@ -297,9 +292,7 @@ namespace SOUI
 
 		ShowManifier(_showMagnifier);
 
-		//
-		// Ϊ��ʡ�ڴ棬����ʹ��ͬһ��ͼƬ
-		//
+		// 为节省内存，尽量使用同一张图片
 		ISkinObj* pSkin = ImageProvider::GetImage(_skinId);
 		if (pSkin != NULL)
 		{
@@ -311,8 +304,8 @@ namespace SOUI
 				}
 
 				//
-				// gifͼƬ��Ҫ����һ���µĳ�������ΪGIF�ĵ�ǰ��ʾ֡������SImageView���У��������һ��ͼƬ�ڴ棬
-				// ��ʾ��ʱ��ֻ����ʾ���һ��SImageView�ĵ�ǰ֡
+				// gif图片需要拷贝一份新的出来，因为GIF的当前显示帧被各个SImageView持有，如果公用一份图片内存，
+				// 显示的时候只能显示最后一个SImageView的当前帧
 				// 
 				_skinId = GenGuid();
 				SAntialiasSkin* pNewSkin = new SAntialiasSkin();
@@ -326,7 +319,7 @@ namespace SOUI
 		}
 		else if (!_path.IsEmpty())
 		{
-			// ������û��ָ����ͼƬ�����¼���
+			// 缓存里没有指定的图片就重新加载
 			return SetImagePath(_path, _skinId);
 		}
 
@@ -335,26 +328,20 @@ namespace SOUI
 
 	bool RichEditImageOle::OnImageLoaded(SOUI::EventArgs* pEvt)
 	{
-		// 		EventImgCacheNotify* pev = (EventImgCacheNotify*)pEvt;
-		// 
-		// 		if (!SWindowMgr::GetWindow(pev->Context))
-		// 		{
-		// 			STRACE(_T("NOT FOUND ole:%08x"), pev->Context);
-		// 			return true;
-		// 		}
+		EventImgCacheNotify* pev = (EventImgCacheNotify*)pEvt;
+
+		if (!SWindowMgr::GetWindow(pev->Context))
+			return true;
 
 		BOOL scrollToBottom = _pObjHost->IsScrollAtBottom();
 
 		SetImageSkin(_skinId);
-
 		RichEditObj* pObj = this;
 		for (; pObj->GetParent(); pObj = pObj->GetParent());
 		_pObjHost->UpdateRichObj(pObj);
 
 		if (scrollToBottom)
-		{
 			_pObjHost->ScrollToBottom();
-		}
 
 		return true;
 	}
@@ -418,7 +405,7 @@ namespace SOUI
 		if (chr.cpMin <= cp && cp < chr.cpMax && chr.cpMax - chr.cpMin > 1)
 		{
 			CRect rcFrame(0, 0, _objRect.Width(), _objRect.Height());
-			//pRt->InvertRect(rcFrame);  //ͨ����תÿ�����ص�ֵ���Ӷ���תһ���豸������ָ���ľ���(��ѡ��ʱ����gifͼƬ͸��)
+			//pRt->InvertRect(rcFrame);  //通过反转每个像素的值，从而反转一个设备场景中指定的矩形(在选中时导致gif图片透明)
 		}
 
 		pRt->SetViewportOrg(originalOrgPt);
@@ -432,7 +419,7 @@ namespace SOUI
 		if (msg == WM_LBUTTONDBLCLK)
 		{
 			_pObjHost->NotifyRichObjEvent(this, DBLCLICK_IMAGEOLE, 0, 0);
-			bHandled = TRUE; // ��ϣ��˫���¼�������richedit����
+			bHandled = TRUE; // 不希望双击事件继续往richedit传递
 		}
 		else if (msg == WM_LBUTTONDOWN)
 		{
@@ -458,9 +445,7 @@ namespace SOUI
 	}
 	RichEditAudioOle::~RichEditAudioOle()
 	{
-		//
-		// ��ͼƬskin���ڴ���_oleView��������_oleView�ͷ�ʱ�������skin��release
-		// 
+		// 把图片skin的内存由_oleView管理，当_oleView释放时，会调用skin的release
 	}
 	void RichEditAudioOle::AudioPlayFinish()
 	{
@@ -1308,14 +1293,14 @@ namespace SOUI
 		return formattedText;
 	}
 
-	bool RichEditFileOle::OnFileNameClicked(SOUI::EventArgs* pEvt)
+	bool RichEditFileOle::OnFileNameClicked(SOUI::IEvtArgs* pEvt)
 	{
 		int linkFlag = LINK_OPEN_FILE;
 		_pObjHost->NotifyRichObjEvent(this, CLICK_FILEOLE, linkFlag, (LPARAM)(LPCWSTR)_filePath);
 		return true;
 	}
 
-	bool RichEditFileOle::OnLinkClicked(SOUI::EventArgs* pEvt)
+	bool RichEditFileOle::OnLinkClicked(SOUI::IEvtArgs* pEvt)
 	{
 		int linkFlag = 0;
 

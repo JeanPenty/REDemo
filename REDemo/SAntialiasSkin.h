@@ -13,6 +13,8 @@ purpose:	自定义皮肤对象
 #include <interface/SSkinobj-i.h>
 #include <helper/obj-ref-impl.hpp>
 
+#include "SAntialiasSkin.h"
+
 namespace Gdiplus
 {
 	class Bitmap;

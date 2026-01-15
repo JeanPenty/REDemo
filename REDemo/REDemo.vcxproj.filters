@@ -83,6 +83,15 @@
     <ClCompile Include="ClipboardConverter.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SSkinGif.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SAniImgFrame.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SSkinPoolMgr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="REDemo.rc">
@@ -157,6 +166,15 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="ExtendEvents.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SSkinGif.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SAniImgFrame.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SSkinPoolMgr.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -198,9 +198,19 @@ namespace SOUI
         return TRUE;
     }
 
+    static ULONG_PTR s_gdipToken = 0;
+
     BOOL SAntialiasSkin::LoadFromFile(LPCTSTR pszFileName)
     {
-        Gdiplus::Bitmap* pImage = Gdiplus::Bitmap::FromFile(pszFileName);
+		GdiplusStartupInput gdiplusStartupInput;
+		Status st = GdiplusStartup(&s_gdipToken, &gdiplusStartupInput, NULL);
+
+        SStringW sstrPath = L"E:\\soui_demos\\REDemo\\REDemo\\uires\\image\\im\\right_bubble.png";
+        if (_waccess(sstrPath.c_str(), 0) == -1) { 
+            wprintf(L"File not found: %s\n", sstrPath.c_str()); 
+            return FALSE; 
+        }
+        Gdiplus::Bitmap* pImage = Gdiplus::Bitmap::FromFile(sstrPath, FALSE);
         if (pImage->GetLastStatus() != Gdiplus::Ok)
         {
             return FALSE;
