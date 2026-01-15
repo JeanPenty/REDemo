@@ -242,11 +242,11 @@ namespace SOUI
 			ATTR_INT(L"visible", _bVisible, FALSE)
 			ATTR_INT(L"interactive", _isInteractive, FALSE)
 			ATTR_INT(L"hittestable", _hittestable, FALSE)
-			ATTR_CUSTOM(L"pos", OnAttrPos)     // ����3��pos��һ��
+			ATTR_CUSTOM(L"pos", OnAttrPos)     
 			ATTR_CUSTOM(L"center-pos", OnAttrPosCenter)
 			ATTR_CUSTOM(L"left-pos", OnAttrPosLeft)
 			ATTR_CUSTOM(L"right-pos", OnAttrPosRight)
-			ATTR_CUSTOM(L"skin", OnAttrSkin)   // ����3��skin��һ��
+			ATTR_CUSTOM(L"skin", OnAttrSkin)  
 			ATTR_SKIN(L"left-skin", _pLeftSkin, FALSE)
 			ATTR_SKIN(L"center-skin", _pCenterSkin, FALSE)
 			ATTR_SKIN(L"right-skin", _pRightSkin, FALSE)
@@ -254,6 +254,7 @@ namespace SOUI
 			ATTR_COLOR(L"text-color", _textColor, FALSE)
 			ATTR_STRINGW(L"text", _text, FALSE)
 			ATTR_HEX(L"text-format", _textFormat, FALSE)
+			ATTR_STRINGW(L"data", _data, FALSE)
 			SOUI_ATTRS_END()
 
 	protected:
@@ -347,10 +348,10 @@ namespace SOUI
 		BOOL OnTimestampAttr(const SStringW& attr, BOOL bLoading);
 		SOUI_ATTRS_BEGIN()
 			ATTR_STRINGW(L"type", _contentType, FALSE)
-			ATTR_INT(L"auto-layout", _autoLayout, TRUE) /**< �Ƿ��Զ�����,�����ûḲ��align����*/
-			ATTR_CUSTOM(L"timestamp", OnTimestampAttr)	//������Ϣ��ʱ���
-			ATTR_STRINGW(L"talk_type", _contentTalkType, FALSE)	//��������
-			ATTR_STRINGW(L"origin", _contentOrigin, FALSE)		//��Ϣid
+			ATTR_INT(L"auto-layout", _autoLayout, TRUE) //是否自动布局,该设置会覆盖align属性
+			ATTR_CUSTOM(L"timestamp", OnTimestampAttr)	//该条消息的时间戳
+			ATTR_STRINGW(L"talk_type", _contentTalkType, FALSE)	//聊天类型
+			ATTR_STRINGW(L"origin", _contentOrigin, FALSE)		//消息id
 			ATTR_STRINGW(L"msgtype", _contentMsgType, FALSE)
 			ATTR_STRINGW(L"content_id", _contentID, FALSE)
 			SOUI_ATTRS_END()

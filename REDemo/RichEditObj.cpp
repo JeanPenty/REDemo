@@ -744,6 +744,7 @@ namespace SOUI
 		memset(&_defPosItems, 0, sizeof(_defPosItems));
 		memset(&_centerPosItems, 0, sizeof(_centerPosItems));
 		memset(&_rightPosItems, 0, sizeof(_rightPosItems));
+		_objRect.SetRect(0, 0, 0, 0);
 	}
 
 	RichEditBkElement::~RichEditBkElement()
@@ -852,7 +853,7 @@ namespace SOUI
 			if (rcHost.IntersectRect(_objRect, rcTemp))
 			{
 				pRT->PushClipRect(rcHost);
-				//pSkin->Draw(pRT, _objRect, 0);
+				pSkin->DrawByIndex(pRT, _objRect, 0);
 				pRT->PopClip();
 			}
 		}
@@ -1109,6 +1110,21 @@ namespace SOUI
 		{
 			_objRect.bottom = PositionItem2Value(pItemsPos[BOTTOM], rcHost.top, rcHost.bottom, FALSE);
 		}
+
+		// 确保矩形有效（left <= right, top <= bottom）
+		if (_objRect.left > _objRect.right)
+		{
+			LONG temp = _objRect.left;
+			_objRect.left = _objRect.right;
+			_objRect.right = temp;
+		}
+		if (_objRect.top > _objRect.bottom)
+		{
+			LONG temp = _objRect.top;
+			_objRect.top = _objRect.bottom;
+			_objRect.bottom = temp;
+		}
+
 		_isDirty = FALSE;
 	}
 
@@ -1123,7 +1139,7 @@ namespace SOUI
 	HRESULT RichEditBkElement::OnAttrPos(const SStringW& strValue, BOOL bLoading)
 	{
 		OnInternalAttrPos(_defPosItems, _defPosCount, strValue, bLoading);
-		OnInternalAttrPos(_centerPosItems, _rightPosCount, strValue, bLoading);
+		OnInternalAttrPos(_centerPosItems, _centerPosCount, strValue, bLoading);
 		OnInternalAttrPos(_rightPosItems, _rightPosCount, strValue, bLoading);
 		return FALSE;
 	}
@@ -1135,7 +1151,7 @@ namespace SOUI
 
 	HRESULT RichEditBkElement::OnAttrPosCenter(const SStringW& strValue, BOOL bLoading)
 	{
-		return OnInternalAttrPos(_centerPosItems, _rightPosCount, strValue, bLoading);
+		return OnInternalAttrPos(_centerPosItems, _centerPosCount, strValue, bLoading);
 	}
 
 	HRESULT RichEditBkElement::OnAttrPosRight(const SStringW& strValue, BOOL bLoading)

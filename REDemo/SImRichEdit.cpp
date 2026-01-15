@@ -12,6 +12,7 @@
 #include <RichOle.h>
 #include "ClipboardConverter.h"
 #include "RichEditOleBase.h"
+#include <memory>
 
 #ifndef LY_PER_INCH
 #define LY_PER_INCH 1440
@@ -1294,16 +1295,17 @@ namespace SOUI
 				break;
 			}
 
-// 			SComPtr<RichEditImageOle> pImageOle = NULL;
-// 			if (reobj.poleobj->QueryInterface(IID_ImageOleCtrl, (VOID**)&pImageOle) == S_OK)
-// 			{
-// 				CRect rcObj = pImageOle->GetRect();
-// 				if (rcObj.IntersectRect(rcObj, validRgnRect))
-// 				{
-// 					pImageOle->InternalDraw(pRt, _pDelayDrawRgn, reobj.cp);
-// 				}
-// 				reobj.poleobj->Release();
-// 			}
+			RichEditImageOle* pImageOlePtr = nullptr;
+			if (reobj.poleobj->QueryInterface(IID_ImageOleCtrl, (VOID**)&pImageOlePtr) == S_OK)
+			{
+				std::shared_ptr<RichEditImageOle> pImageOle(pImageOlePtr);
+				CRect rcObj = pImageOle->GetRect();
+				if (rcObj.IntersectRect(rcObj, validRgnRect))
+				{
+					pImageOle->InternalDraw(pRt, _pDelayDrawRgn, reobj.cp);
+				}
+			}
+			reobj.poleobj->Release();
 		}
 	}
 
@@ -1652,8 +1654,12 @@ namespace SOUI
 
 		if (pRichObj != NULL && pRichObj->NeedToProcessMessage())
 		{
-			pRichObj->ProcessMessage(
-				WM_LBUTTONDBLCLK, GetCurMsg()->wParam, GetCurMsg()->lParam, bHandled);
+			PSWNDMSG pMsg = GetCurMsg();
+			if (pMsg)
+			{
+				pRichObj->ProcessMessage(
+					WM_LBUTTONDBLCLK, pMsg->wParam, pMsg->lParam, bHandled);
+			}
 
 			SetMsgHandled(bHandled);
 		}
@@ -1682,8 +1688,6 @@ namespace SOUI
 
 	void SImRichEdit::OnRButtonUp(UINT nFlags, CPoint point)
 	{
-		LRESULT result = 0;
-		SwndProc(GetCurMsg()->uMsg, GetCurMsg()->wParam, GetCurMsg()->lParam, &result);
 		FireCtxMenu(point);
 	}
 
@@ -1691,17 +1695,18 @@ namespace SOUI
 	{
 		BOOL bHandled = FALSE;
 		RichEditObj* pRichObj = HitTest(point);
+		PSWNDMSG pMsg = GetCurMsg();
 
-		if (pRichObj != NULL && pRichObj->NeedToProcessMessage())
+		if (pRichObj != NULL && pRichObj->NeedToProcessMessage() && pMsg)
 		{
 			pRichObj->ProcessMessage(
-				WM_MOUSEMOVE, GetCurMsg()->wParam, GetCurMsg()->lParam, bHandled);
+				WM_MOUSEMOVE, pMsg->wParam, pMsg->lParam, bHandled);
 		}
 
-		if (_pLastHoverObj != NULL && pRichObj != _pLastHoverObj)
+		if (_pLastHoverObj != NULL && pRichObj != _pLastHoverObj && pMsg)
 		{
 			_pLastHoverObj->ProcessMessage(
-				WM_MOUSELEAVE, GetCurMsg()->wParam, GetCurMsg()->lParam, bHandled);
+				WM_MOUSELEAVE, pMsg->wParam, pMsg->lParam, bHandled);
 		}
 		_pLastHoverObj = pRichObj;
 

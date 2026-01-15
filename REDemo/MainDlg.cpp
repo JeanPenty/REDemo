@@ -42,7 +42,7 @@ BOOL CMainDlg::OnInitDialog(HWND hWnd, LPARAM lParam)
 	SStringW sstrTimeContent;
 	sstrTimeContent.Format(
 		L"<RichEditContent type=\"ContentCenter\" >"
-		L"<para margin=\"100,15,100,0\" align=\"center\" break=\"1\" >"
+		L"<para margin=\"0,10,0,5\" align=\"center\" break=\"1\" >"
 		L"%s"
 		L"</para>"
 		L"</RichEditContent>", sstrTime.c_str());
@@ -85,10 +85,11 @@ BOOL CMainDlg::OnInitDialog(HWND hWnd, LPARAM lParam)
 
 	SStringW sstrMessageID = L"1234567898";
 	SStringW sstrContent = SStringW().Format(
-		L"<RichEditContent msgtype=\"text\" id=\"%s\" content_id=\"%s\" talk_type=\"group\" origin=\"%s\" timestamp=\"%s\" type=\"ContentRight\" align=\"right\" auto-layout=\"1\">"
+		L"<RichEditContent msgtype=\"text\" id=\"%s\" content_id=\"%s\" talk_type=\"group\" origin=\"%s\" timestamp=\"%s\" type=\"ContentLeft\" align=\"left\" auto-layout=\"1\">"
 		L"<para id=\"msgbody\" margin=\"20,10,10,10\" break=\"1\" simulate-align=\"1\">"
 		L"<text font-size=\"10\" font-face=\"微软雅黑\" color=\"#000000\">测试1234561234 测试1234561234</text>"
 		L"</para>"
+		L"<bkele data=\"bubble\" left-skin=\"skin_left_bubble\" right-skin=\"skin_right_otherbubble\" left-pos=\"50,10,100,50\" right-pos=\"-10,10,100,50\" />"
 		L"</RichEditContent>",
 		sstrMessageID, sstrMessageID, L"", L"");
 	

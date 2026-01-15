@@ -60,7 +60,7 @@ namespace SOUI
 	RichEditImageOle::~RichEditImageOle()
 	{
 		//
-		// °ÑÍ¼Æ¬skinµÄÄÚ´æÓÉ_oleView¹ÜÀí£¬µ±_oleViewÊÍ·ÅÊ±£¬»áµ÷ÓÃskinµÄrelease
+		// ï¿½ï¿½Í¼Æ¬skinï¿½ï¿½ï¿½Ú´ï¿½ï¿½ï¿½_oleViewï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½_oleViewï¿½Í·ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½skinï¿½ï¿½release
 		// 
 	}
 
@@ -68,8 +68,8 @@ namespace SOUI
 	{
 		if (riid == IID_ImageOleCtrl)
 		{
-			*ppvObject = this;
-			AddRef();
+			*ppvObject = static_cast<RichEditImageOle*>(this);
+			RichEditOleBase::AddRef();
 			return S_OK;
 		}
 
@@ -155,7 +155,7 @@ namespace SOUI
 
 	BOOL RichEditImageOle::SetImagePath(const SStringW& path, const SStringW& skinId)
 	{
-		// Í¬²½ÏÂÔØÍ¼Æ¬
+		// Í¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¼Æ¬
 		SStringW newPath;
 		if (!DownLoadNetworkFile(path, newPath))
 		{
@@ -163,10 +163,10 @@ namespace SOUI
 			return FALSE;
 		}
 
-		// ¾¡Á¿±£Ö¤ÓÃÍ¬Ò»ÕÅÍ¼Æ¬£¬²»ÒªÖØ¸´¼ÓÔØ
-		// Í·Ïñ¡¢±íÇéÒ»¶¨ÒªÓÃÍ¬Ò»ÕÅ
-		// Í¼Æ¬µÄ¿½±´£¬·¢ËÍÒ²¿ÉÒÔ
-		// µ«ÊÇ½ÓÊÕµ½¶àÕÅÍ¬ÑùµÄÍ¼Æ¬¾Í²»ĞĞÁË
+		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¤ï¿½ï¿½Í¬Ò»ï¿½ï¿½Í¼Æ¬ï¿½ï¿½ï¿½ï¿½Òªï¿½Ø¸ï¿½ï¿½ï¿½ï¿½ï¿½
+		// Í·ï¿½ñ¡¢±ï¿½ï¿½ï¿½Ò»ï¿½ï¿½Òªï¿½ï¿½Í¬Ò»ï¿½ï¿½
+		// Í¼Æ¬ï¿½Ä¿ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò²ï¿½ï¿½ï¿½ï¿½
+		// ï¿½ï¿½ï¿½Ç½ï¿½ï¿½Õµï¿½ï¿½ï¿½ï¿½ï¿½Í¬ï¿½ï¿½ï¿½ï¿½Í¼Æ¬ï¿½Í²ï¿½ï¿½ï¿½ï¿½ï¿½
 
 		_path = newPath;
 		_skinId = skinId;
@@ -220,12 +220,12 @@ namespace SOUI
 		CalculateExtentSize(_sizeNatural);
 
 		_pImageView->SetSkin(pSkin);
-		_oleView.SetDelayDraw(_pImageView->GetFrameCount() > 1); // ´óÓÚ1Ö¡µÄÍ¼Æ¬ĞèÒªÑÓ³ÙË¢ĞÂ
+		_oleView.SetDelayDraw(_pImageView->GetFrameCount() > 1); // ï¿½ï¿½ï¿½ï¿½1Ö¡ï¿½ï¿½Í¼Æ¬ï¿½ï¿½Òªï¿½Ó³ï¿½Ë¢ï¿½ï¿½
 		_oleView.SetOleWindowRect(CRect());
 		_oleView.Move2(0, 0, _sizeNatural.cx, _sizeNatural.cy);
 
 		//
-		// Ë¢ĞÂUI
+		// Ë¢ï¿½ï¿½UI
 		//
 		BOOL scrollToBottom = _pObjHost->IsScrollAtBottom();
 
@@ -282,8 +282,8 @@ namespace SOUI
 	}
 
 	//
-	// Í¼Æ¬oleÖ»¶ÁÈ¡ImgCacheÀïµÄÍ¼Æ¬£¬ËùÒÔ»áºöÂÔµô_path²ÎÊı£¬_pathÓÃÀ´Éú²úÕ³Ìù°åĞÅÏ¢»òÕßÌá¹©¸øpresenterËùÓÃ
-	// µ÷ÓÃÕßĞèÒªÔ¤ÏÈ¼ÓÔØÍ¼Æ¬½øImgCacheÀï£¬È»ºóµ÷ÓÃSetImageSkin·½·¨¡£
+	// Í¼Æ¬oleÖ»ï¿½ï¿½È¡ImgCacheï¿½ï¿½ï¿½Í¼Æ¬ï¿½ï¿½ï¿½ï¿½ï¿½Ô»ï¿½ï¿½ï¿½Ôµï¿½_pathï¿½ï¿½ï¿½ï¿½ï¿½ï¿½_pathï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Õ³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢ï¿½ï¿½ï¿½ï¿½ï¿½á¹©ï¿½ï¿½presenterï¿½ï¿½ï¿½ï¿½
+	// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÒªÔ¤ï¿½È¼ï¿½ï¿½ï¿½Í¼Æ¬ï¿½ï¿½ImgCacheï¿½ï£¬È»ï¿½ï¿½ï¿½ï¿½ï¿½SetImageSkinï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 	//
 	BOOL RichEditImageOle::InitOleWindow(IRichEditObjHost* pHost)
 	{
@@ -298,7 +298,7 @@ namespace SOUI
 		ShowManifier(_showMagnifier);
 
 		//
-		// Îª½ÚÊ¡ÄÚ´æ£¬¾¡Á¿Ê¹ÓÃÍ¬Ò»ÕÅÍ¼Æ¬
+		// Îªï¿½ï¿½Ê¡ï¿½Ú´æ£¬ï¿½ï¿½ï¿½ï¿½Ê¹ï¿½ï¿½Í¬Ò»ï¿½ï¿½Í¼Æ¬
 		//
 		ISkinObj* pSkin = ImageProvider::GetImage(_skinId);
 		if (pSkin != NULL)
@@ -311,8 +311,8 @@ namespace SOUI
 				}
 
 				//
-				// gifÍ¼Æ¬ĞèÒª¿½±´Ò»·İĞÂµÄ³öÀ´£¬ÒòÎªGIFµÄµ±Ç°ÏÔÊ¾Ö¡±»¸÷¸öSImageView³ÖÓĞ£¬Èç¹û¹«ÓÃÒ»·İÍ¼Æ¬ÄÚ´æ£¬
-				// ÏÔÊ¾µÄÊ±ºòÖ»ÄÜÏÔÊ¾×îºóÒ»¸öSImageViewµÄµ±Ç°Ö¡
+				// gifÍ¼Æ¬ï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ÂµÄ³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ÎªGIFï¿½Äµï¿½Ç°ï¿½ï¿½Ê¾Ö¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½SImageViewï¿½ï¿½ï¿½Ğ£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½Í¼Æ¬ï¿½Ú´æ£¬
+				// ï¿½ï¿½Ê¾ï¿½ï¿½Ê±ï¿½ï¿½Ö»ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½ï¿½Ò»ï¿½ï¿½SImageViewï¿½Äµï¿½Ç°Ö¡
 				// 
 				_skinId = GenGuid();
 				SAntialiasSkin* pNewSkin = new SAntialiasSkin();
@@ -326,7 +326,7 @@ namespace SOUI
 		}
 		else if (!_path.IsEmpty())
 		{
-			// »º´æÀïÃ»ÓĞÖ¸¶¨µÄÍ¼Æ¬¾ÍÖØĞÂ¼ÓÔØ
+			// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã»ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½ï¿½Í¼Æ¬ï¿½ï¿½ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½
 			return SetImagePath(_path, _skinId);
 		}
 
@@ -418,7 +418,7 @@ namespace SOUI
 		if (chr.cpMin <= cp && cp < chr.cpMax && chr.cpMax - chr.cpMin > 1)
 		{
 			CRect rcFrame(0, 0, _objRect.Width(), _objRect.Height());
-			//pRt->InvertRect(rcFrame);  //Í¨¹ı·´×ªÃ¿¸öÏñËØµÄÖµ£¬´Ó¶ø·´×ªÒ»¸öÉè±¸³¡¾°ÖĞÖ¸¶¨µÄ¾ØĞÎ(ÔÚÑ¡ÖĞÊ±µ¼ÖÂgifÍ¼Æ¬Í¸Ã÷)
+			//pRt->InvertRect(rcFrame);  //Í¨ï¿½ï¿½ï¿½ï¿½×ªÃ¿ï¿½ï¿½ï¿½ï¿½ï¿½Øµï¿½Öµï¿½ï¿½ï¿½Ó¶ï¿½ï¿½ï¿½×ªÒ»ï¿½ï¿½ï¿½è±¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¸ï¿½ï¿½ï¿½Ä¾ï¿½ï¿½ï¿½(ï¿½ï¿½Ñ¡ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½gifÍ¼Æ¬Í¸ï¿½ï¿½)
 		}
 
 		pRt->SetViewportOrg(originalOrgPt);
@@ -432,7 +432,7 @@ namespace SOUI
 		if (msg == WM_LBUTTONDBLCLK)
 		{
 			_pObjHost->NotifyRichObjEvent(this, DBLCLICK_IMAGEOLE, 0, 0);
-			bHandled = TRUE; // ²»Ï£ÍûË«»÷ÊÂ¼ş¼ÌĞøÍùrichedit´«µİ
+			bHandled = TRUE; // ï¿½ï¿½Ï£ï¿½ï¿½Ë«ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½richeditï¿½ï¿½ï¿½ï¿½
 		}
 		else if (msg == WM_LBUTTONDOWN)
 		{
@@ -459,7 +459,7 @@ namespace SOUI
 	RichEditAudioOle::~RichEditAudioOle()
 	{
 		//
-		// °ÑÍ¼Æ¬skinµÄÄÚ´æÓÉ_oleView¹ÜÀí£¬µ±_oleViewÊÍ·ÅÊ±£¬»áµ÷ÓÃskinµÄrelease
+		// ï¿½ï¿½Í¼Æ¬skinï¿½ï¿½ï¿½Ú´ï¿½ï¿½ï¿½_oleViewï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½_oleViewï¿½Í·ï¿½Ê±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½skinï¿½ï¿½release
 		// 
 	}
 	void RichEditAudioOle::AudioPlayFinish()
@@ -853,7 +853,7 @@ namespace SOUI
 				_sizeNatural.cx = 190;
 			_sizeNatural.cy = 40;
 
-			_oleView.SetOleWindowRect(CRect(0, 0, 0, 0)); // ÒÑ¾­Ê§Ğ§
+			_oleView.SetOleWindowRect(CRect(0, 0, 0, 0)); // ï¿½Ñ¾ï¿½Ê§Ğ§
 			_oleView.Move2(0, 0, _sizeNatural.cx, _sizeNatural.cy);
 			CalculateExtentSize(_sizeNatural);
 			_spAdviseSink->OnViewChange(DVASPECT_CONTENT, -1);
@@ -1100,7 +1100,7 @@ namespace SOUI
 			double fRatio = GetZoomRatio(tempSize, _sizeNatural);
 			tempSize.cx = LONG((double)tempSize.cx * fRatio);
 			tempSize.cy = LONG((double)tempSize.cy * fRatio);
-			_oleView.SetOleWindowRect(CRect(0, 0, 0, 0)); // ÒÑ¾­Ê§Ğ§
+			_oleView.SetOleWindowRect(CRect(0, 0, 0, 0)); // ï¿½Ñ¾ï¿½Ê§Ğ§
 			_oleView.Move2(0, 0, tempSize.cx, tempSize.cy);
 			CalculateExtentSize(tempSize);
 			_spAdviseSink->OnViewChange(DVASPECT_CONTENT, -1);
@@ -1164,7 +1164,7 @@ namespace SOUI
 	{
 		if (_spAdviseSink)
 		{
-			_oleView.SetOleWindowRect(CRect(0, 0, 0, 0)); // ÒÑ¾­Ê§Ğ§
+			_oleView.SetOleWindowRect(CRect(0, 0, 0, 0)); // ï¿½Ñ¾ï¿½Ê§Ğ§
 			_oleView.Move2(0, 0, _sizeNatural.cx, _sizeNatural.cy);
 			CalculateExtentSize(_sizeNatural);
 			_spAdviseSink->OnViewChange(DVASPECT_CONTENT, -1);
@@ -1256,7 +1256,7 @@ namespace SOUI
 			tempSize.cx = LONG((double)tempSize.cx * fRatio);
 			tempSize.cy = LONG((double)tempSize.cy * fRatio);
 
-			_oleView.SetOleWindowRect(CRect(0, 0, 0, 0)); // ÒÑ¾­Ê§Ğ§
+			_oleView.SetOleWindowRect(CRect(0, 0, 0, 0)); // ï¿½Ñ¾ï¿½Ê§Ğ§
 			_oleView.Move2(0, 0, tempSize.cx, tempSize.cy);
 			CalculateExtentSize(tempSize);
 			_spAdviseSink->OnViewChange(DVASPECT_CONTENT, -1);
@@ -1703,7 +1703,7 @@ namespace SOUI
 			_sizeNatural.cx = rcHost.Width();
 
 			CalculateExtentSize(_sizeNatural);
-			_oleView.SetOleWindowRect(CRect(0, 0, 0, 0)); // ÒÑ¾­Ê§Ğ§
+			_oleView.SetOleWindowRect(CRect(0, 0, 0, 0)); // ï¿½Ñ¾ï¿½Ê§Ğ§
 			_oleView.Move2(0, 0, _sizeNatural.cx, _sizeNatural.cy);
 			_spAdviseSink->OnViewChange(DVASPECT_CONTENT, -1);
 		}
@@ -1730,7 +1730,7 @@ namespace SOUI
 		if (_spAdviseSink)
 		{
 			_sizeNatural.cx = _pObjHost->GetHostRect().Width();
-			_oleView.SetOleWindowRect(CRect(0, 0, 0, 0)); // ÒÑ¾­Ê§Ğ§
+			_oleView.SetOleWindowRect(CRect(0, 0, 0, 0)); // ï¿½Ñ¾ï¿½Ê§Ğ§
 			_oleView.Move2(0, 0, _sizeNatural.cx, _sizeNatural.cy);
 			CalculateExtentSize(_sizeNatural);
 			_spAdviseSink->OnViewChange(DVASPECT_CONTENT, -1);
@@ -1760,8 +1760,8 @@ namespace SOUI
 	{
 		if (riid == IID_RemainderOleCtrl)
 		{
-			*ppvObject = this;
-			AddRef();
+			*ppvObject = static_cast<RichEditReminderOle*>(this);
+			RichEditOleBase::AddRef();
 			return S_OK;
 		}
 
@@ -1866,7 +1866,7 @@ namespace SOUI
 		if (msg == WM_LBUTTONDOWN)
 		{
 			_pObjHost->NotifyRichObjEvent(this, CLICK_REMAINDER_OLE, 0, 0);
-			bHandled = TRUE; // ²»Ï£ÍûË«»÷ÊÂ¼ş¼ÌĞøÍùrichedit´«µİ
+			bHandled = TRUE; // ï¿½ï¿½Ï£ï¿½ï¿½Ë«ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½richeditï¿½ï¿½ï¿½ï¿½
 		}
 
 		return 0;
@@ -1997,7 +1997,7 @@ namespace SOUI
 		if (msg == WM_LBUTTONDBLCLK)
 		{
 			_pObjHost->NotifyRichObjEvent(this, DBLCLICK_RICH_METAFILE, 0, 0);
-			bHandled = TRUE; // ²»Ï£ÍûË«»÷ÊÂ¼ş¼ÌĞøÍùrichedit´«µİ
+			bHandled = TRUE; // ï¿½ï¿½Ï£ï¿½ï¿½Ë«ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½richeditï¿½ï¿½ï¿½ï¿½
 		}
 
 		return 0;

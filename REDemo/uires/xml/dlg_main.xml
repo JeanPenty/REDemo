@@ -12,23 +12,25 @@ translucent="1"
       <imgbtn name="btn_min" skin="_skin.sys.btn.minimize" pos="-121,0" animate="1" />
     </caption>
     <window pos="5,[2,-5,-5">
-          <imrichedit name="recv_richedit"
-               pos="0,0,-0,-150"
-               bkgndBlend="1"
-               colorBkgnd="rgb(255,255,255)"
-               enableDragdrop="1"
-               readOnly="0"
-               autoSel="0"
-               multiLines="1"
-               autoWordSel="0"
-               vscrollBar="1"
-               wordWrap="1"
-               autoVscroll="0"
-               hscrollBar="0"
-               wantReturn="1"
-               scrollSpeed="60"
-               inset="5,0,12,0"
-               sbWid="8"/>
-    </window>
+		<caption pos="0,0,-0,-0" colorBkgnd="#FF00FF">
+			<imrichedit name="recv_richedit"
+						pos="10,10,-10,-10"
+						bkgndBlend="1"
+						colorBkgnd="rgb(255,255,255)"
+						enableDragdrop="1"
+						readOnly="0"
+						autoSel="0"
+						multiLines="1"
+						autoWordSel="0"
+						vscrollBar="1"
+						wordWrap="1"
+						autoVscroll="0"
+						hscrollBar="0"
+						wantReturn="1"
+						scrollSpeed="60"
+						inset="5,0,12,0"
+						sbWid="8"/>
+		</caption>
+	</window>
   </root>
 </SOUI>
