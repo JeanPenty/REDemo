@@ -89,7 +89,7 @@ BOOL CMainDlg::OnInitDialog(HWND hWnd, LPARAM lParam)
 		L"<para id=\"msgbody\" margin=\"20,10,10,10\" break=\"1\" simulate-align=\"1\">"
 		L"<text font-size=\"10\" font-face=\"微软雅黑\" color=\"#000000\">测试1234561234 测试1234561234</text>"
 		L"</para>"
-		L"<bkele data=\"bubble\" left-skin=\"skin_left_bubble\" right-skin=\"skin_right_otherbubble\" left-pos=\"50,10,100,50\" right-pos=\"-10,10,100,50\" />"
+		L"<bkele data=\"bubble\" left-skin=\"skin_left_bubble\" right-skin=\"skin_right_otherbubble\" left-pos=\"50,{-9,[10,[10\" right-pos=\"{-10,{-9,-55,[10\" />"
 		L"</RichEditContent>",
 		sstrMessageID, sstrMessageID, L"", L"");
  	pRecvEdit->InsertContent(sstrContent, RECONTENT_LAST);
