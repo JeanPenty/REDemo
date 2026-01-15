@@ -1,16 +1,17 @@
 #pragma once
 #include <TOM.h>
-#include "IRichEditObjHost.h"
 #include "atl.mini/SComCli.h"
-#include <control/SRichEdit.h>
 
+#include <control/SRichEdit.h>
+#include "RichEditObj.h"
+#include "RichEditOleBase.h"
+#include "IRichEditObjHost.h"
+#include "RichEditOleCtrls.h"
 #include "RichEditOleCallback.h"
+#include "ExtendEvents.h"
 
 namespace SOUI
 {
-	class RichEditContent;
-	class RichEditOleBase;
-
 	class SImRichEdit : public SRichEdit, public IRichEditObjHost, public ITimelineHandler
 	{
 		struct UpdateContext
@@ -163,26 +164,25 @@ namespace SOUI
 		virtual BOOL IsScrollAtBottom();
 
 		private:
-
 			typedef SArray<RichEditContent*> RichContentArray;
-			CRect caretRect;         // 相对于richedit左上角的光标位置。记录调用TxSetCaretPos时的位置，
-			CHARRANGE _visibleChr;        // 可见的字符范围
-			CHARRANGE _visibleOleChr;     // 可见的OLE范围
+			CRect caretRect;				// 相对于richedit左上角的光标位置。记录调用TxSetCaretPos时的位置，
+			CHARRANGE _visibleChr;			// 可见的字符范围
+			CHARRANGE _visibleOleChr;		// 可见的OLE范围
 			CAutoRefPtr<IRenderTarget> _pBackgroundRt;     // 背景rt
-			BOOL _isBackgroundDirty; // 标记_pBackgroundRt是否失效
+			BOOL _isBackgroundDirty;		// 标记_pBackgroundRt是否失效
 			ITextDocument* _pTextDoc;
 			RichContentArray _richContents;      // richedit显示的内容
 			RichEditObj* _pLastHoverObj;     // 光标悬浮的最后一个obj
-			time_t  _lastDrawTicks;     // 记录最后一次刷新的时间，用来走定时刷新，60ticks刷一次
+			time_t _lastDrawTicks;			// 记录最后一次刷新的时间，用来走定时刷新，60ticks刷一次
 			CAutoRefPtr<IRegionS> _pDelayDrawRgn;     // 脏区域
-			CRect _originalInset;     // 原始设置的内边距
-			BOOL _isDrawEnable;      // 能否刷新UI
-			BOOL _scrollbarOutdated; // 标记滚动条是否需要再设置一次，详细含义见OnScroll描述
-			BOOL _scrollbarAtBottom; // 标记滚动条是否在底部
-			BOOL _isDragging;        // 标记是否处于拖拽状态
-			BOOL _readOnlyBeforeDrag;// 拖拽前的只读状态
-			BOOL _fixVScroll;        // 动态刷新垂直滚动条，确保不会出现一片空白的情况
-			bool _isCreatIme;		//标记是否正要启动输入法，启动后这个标记位置为false
+			CRect _originalInset;			// 原始设置的内边距
+			BOOL _isDrawEnable;				// 能否刷新UI
+			BOOL _scrollbarOutdated;		// 标记滚动条是否需要再设置一次，详细含义见OnScroll描述
+			BOOL _scrollbarAtBottom;		// 标记滚动条是否在底部
+			BOOL _isDragging;				// 标记是否处于拖拽状态
+			BOOL _readOnlyBeforeDrag;		// 拖拽前的只读状态
+			BOOL _fixVScroll;				// 动态刷新垂直滚动条，确保不会出现一片空白的情况
+			bool _isCreatIme;				//标记是否正要启动输入法，启动后这个标记位置为false
 	};
 }
 

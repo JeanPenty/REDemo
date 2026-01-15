@@ -217,6 +217,7 @@
   <ItemGroup>
     <ClInclude Include="ClipboardConverter.h" />
     <ClInclude Include="dataobject.h" />
+    <ClInclude Include="ExtendEvents.h" />
     <ClInclude Include="ExtendSkins.h" />
     <ClInclude Include="HTMLParser.h" />
     <ClInclude Include="HTTPDownloader.h" />
